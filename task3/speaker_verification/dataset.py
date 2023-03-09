@@ -9,7 +9,7 @@ from torch.utils.data import Dataset
 import torch
 import torchaudio
 
-# changed
+# where we load id by annotation file 
 class SpeakingFacesDataset(Dataset):
     def __init__(self, annotations_file, 
                        dataset_dir, 
@@ -83,3 +83,78 @@ class SpeakingFacesDataset(Dataset):
 
     def _get_sample_label(self, index):
         return torch.tensor(self.df_wav.iloc[index, 4])
+
+
+# validation set created from valid_lists_v2.txt
+class ValidDataset(Dataset):
+    def __init__(self, path2dataset, # path to sf_pv
+                       train_type, 
+                       image_transform=None, 
+                       audio_transform=None
+                ):
+
+        super(ValidDataset, self).__init__()
+
+        self.path2dataset = path2dataset
+
+        path2list = f'{path2dataset}/metadata/{train_type}_list_v2.txt'
+
+        with open(path2list) as f:
+            self.pairs_list = f.read().splitlines()
+        
+        self.image_transform = image_transform
+        self.audio_transform = audio_transform
+
+    def __len__(self):
+        return len(self.pairs_list)
+
+    def __getitem__(self, index):
+
+        id1_path, id2_path, label =  self._get_pair(index)
+
+        id1 = self._get_data(id1_path)
+        id2 = self._get_data(id2_path)
+
+        return id1, id2, label
+
+    def _get_pair(self, index):
+        data_info = self.pairs_list[index].split()
+
+        pairs_label = int(data_info[0]) # same or different: 0 or 1
+        id1_path = data_info[1] # here is a path to the wav
+        id2_path = data_info[2]
+
+        return id1_path, id2_path, pairs_label
+
+    def _get_data(self, id):
+
+        label = self._get_label(id)
+        path2wav, path2rgb, path2thr = self._get_sample_path(id)
+
+        data_wav, sample_rate = torchaudio.load(path2wav) 
+        data_rgb = io.imread(path2rgb)
+        data_thr = io.imread(path2thr)
+
+        if self.audio_transform:
+            data_wav = self.audio_transform(data_wav, sample_rate)
+        if self.image_transform:
+            data_rgb = self.image_transform(data_rgb)
+            data_thr = self.image_transform(data_thr)
+
+        return (data_wav, data_rgb, data_thr, label)
+    
+    def _get_sample_path(self, id):
+
+        path = "/".join(self.path2dataset.split("/")[:-1]) # path to sf_pv
+
+        path2wav = f"{path}/{id}"
+        path2rgb = f"{path}/" + "/".join(id.split("/")[:-2]) + "/" + "rgb" + "/" + id.split("/")[-1].split(".")[0] + "/1.jpg"
+        path2thr = f"{path}/" + "/".join(id.split("/")[:-2]) + "/" + "thr" + "/" + id.split("/")[-1].split(".")[0] + "/1.jpg"
+
+        return path2wav, path2rgb, path2thr
+
+    def _get_label(self, id):
+        
+        label = int(id.split("/")[2].split("_")[-1])
+
+        return label

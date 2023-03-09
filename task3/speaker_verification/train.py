@@ -4,9 +4,10 @@ import gc
 import torch
 import torch.nn.functional as F
 
+from speaker_verification.loss import PrototypicalLoss
 from speaker_verification.metrics import EER_
 from speaker_verification.metrics import accuracy_
-
+from timeit import default_timer as timer
 
 def train_model(model, 
                 train_dataloader, 
@@ -17,7 +18,8 @@ def train_model(model,
                 scheduler,
                 device,
                 num_epochs,
-                save_dir):
+                save_dir,
+                exp_name):
 
     logs = {}
     logs['train_loss'] = []
@@ -25,8 +27,17 @@ def train_model(model,
     logs['val_eer'] = []
     logs['val_acc'] = []
     logs['best_acc'] = 0.0
+    logs['best_eer'] = float('inf')
+
+    logs['train_time_min'] = []
+    logs['eval_time_min'] = []
+    logs['epoch_time_min'] = []
+
+    
 
     for epoch in trange(num_epochs, desc="Epoch"):
+        start = timer()
+        start_train = timer()
         
         model, train_loss, train_acc = train_singe_epoch(model, 
                                   train_dataloader,
@@ -36,12 +47,22 @@ def train_model(model,
                                   train_sampler.n_query,
                                   criterion,
                                   optimizer,
-                                  device)
+                                  device,
+                                  modality='rgb')
+        
+        end_train = timer()
+        logs['train_time_min'].append((end_train - start_train)/60)
+        
+        start_val = timer()
         
         model, val_eer, val_acc = evaluate_single_epoch(model, 
                                   valid_dataloader,
                                   epoch,
                                   device)
+
+        end_val = timer()
+        logs['eval_time_min'].append((end_val - start_val)/60)
+
         scheduler.step()
 
         logs['train_loss'].append(train_loss)
@@ -49,10 +70,22 @@ def train_model(model,
         logs['val_eer'].append(val_eer)
         logs['val_acc'].append(val_acc)
 
+
+        if logs['best_eer'] > val_eer:
+            logs['best_eer'] = val_eer
+            torch.save(model.state_dict(), f"{save_dir}/{exp_name}_best_eer.pth")
+            print("Best eer model saved at epoch {}".format(epoch))
+
         if logs['best_acc'] < val_acc:
             logs['best_acc'] = val_acc
+            torch.save(model.state_dict(), f"{save_dir}/{exp_name}_best_acc.pth")
+            print("Best acc model saved at epoch {}".format(epoch))
+        
+        end = timer()
+        print("Time elapsed:",(end - start)/60," minutes")
+        logs['epoch_time_min'].append((end - start)/60)
 
-        torch.save(logs,f'{save_dir}/logs')
+        torch.save(logs,f'{save_dir}/{exp_name}_logs')
     
     del logs
     gc.collect()
@@ -67,7 +100,9 @@ def train_singe_epoch(model,
                       n_query,
                       criterion,
                       optimizer,
-                      device):
+                      device,
+                      modality):
+
     model.train()
     pbar = tqdm(train_dataloader, desc=f'Train (epoch = {epoch})', leave=False)  
 
@@ -75,8 +110,18 @@ def train_singe_epoch(model,
     total_acc = 0
     for batch in pbar:
 
-        _, data_rgb, _, _ = batch # we do not use labels from dataset
-        data = data_rgb.to(device)
+        if modality == "rgb":
+            # data_wav, data_rgb, data_thr, label
+            _,rgb, _, _ = batch # we do not use labels from dataset
+            data = rgb.to(device)
+        elif modality == "thr":
+            # data_wav, data_rgb, data_thr, label
+            _,_, thr, _ = batch # we do not use labels from dataset
+            data = thr.to(device)
+        elif modality == "wav":
+            wav, _, _, _ = batch # we do not use labels from dataset
+            data = wav.to(device)
+            
         data = model(data)
 
         label = torch.arange(n_ways).repeat(n_query)
@@ -86,7 +131,7 @@ def train_singe_epoch(model,
 
         pred = F.softmax(logits,dim=1).argmax(dim=1)
         accuracy = (pred == label).sum()/len(label) * 100
-
+        
         total_loss += loss.item()
         total_acc += accuracy.item()
         
@@ -95,15 +140,59 @@ def train_singe_epoch(model,
         optimizer.step()
     
     avg_loss = total_loss / len(train_dataloader)
-    print("\nAverage train loss: {}".format(avg_loss))
-
     avg_acc = total_acc / len(train_dataloader)
-    print("\nAverage train accuracy: {}".format(avg_acc))
+
+    print()
+    print(f"Average train loss: {avg_loss}")
+    print(f"Average train accuracy: {avg_acc}")
 
     return model, avg_loss, avg_acc
 
-
 def evaluate_single_epoch(model,
+                        val_dataloader,
+                        epoch, 
+                        device, 
+                        modality='rgb'):
+    model.eval()
+    total_eer = 0
+    total_accuracy = 0
+
+    pbar = tqdm(val_dataloader, desc=f'Eval (epoch = {epoch})')
+
+    for batch in pbar:
+
+        id1, id2, labels = batch
+
+        wav_id1, rgb_id1, thr_id1, label_id1 = id1
+        wav_id2, rgb_id2, thr_id2, label_id2 = id2
+
+        if modality == "rgb":
+
+            data_id1 = rgb_id1.to(device)
+            data_id2 = rgb_id2.to(device)
+
+        with torch.no_grad():
+            id1_out = model(data_id1)
+            id2_out = model(data_id2)
+
+            cos_sim = F.cosine_similarity(id1_out, id2_out, dim=1)
+            eer, scores = EER_(cos_sim, labels)
+            accuracy = accuracy_(labels, scores)
+
+            total_eer += eer
+            total_accuracy += accuracy
+    
+    avg_eer = total_eer / len(val_dataloader)
+    print("\nAverage val eer: {}".format(avg_eer))
+
+    avg_accuracy = total_accuracy / len(val_dataloader)
+    print("\nAverage val accuracy: {}".format(avg_accuracy))
+
+    return model, avg_eer, avg_accuracy
+    
+
+# when we do not use lists and create pairs with ValidSampler
+def evaluate_single_epoch_1(model,
                           val_dataloader,
                           epoch,
                           device):

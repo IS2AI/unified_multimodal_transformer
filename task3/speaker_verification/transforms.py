@@ -2,6 +2,12 @@ import torch
 import torchaudio
 import torchvision
 
+import timm
+from timm.data import resolve_data_config
+from timm.data.transforms_factory import create_transform
+
+from PIL import Image
+
 
 def audio_transform(signal, sample_rate):
 
@@ -40,12 +46,40 @@ def audio_transform(signal, sample_rate):
 
     return transform(signal)
     
-def image_transform(image):
+def image_transform(image, resize=128):
 
     transform = torchvision.transforms.Compose([
             torchvision.transforms.ToPILImage(),
-            torchvision.transforms.Resize((128,128)),
+            torchvision.transforms.Resize((resize,resize)),
             torchvision.transforms.ToTensor(), 
         ])
 
     return transform(image)
+
+class Image_Transforms:
+    def __init__(self, model, output_size=128):
+        self.model = model
+        self.output_size = output_size
+
+    def timm(self,image):
+        config = resolve_data_config({}, model=self.model)
+        transform = create_transform(**config)
+
+        image = Image.fromarray(image)
+        image = transform(image)
+
+        return image
+
+    def basic(self, image):
+        s = self.output_size
+        transform = torchvision.transforms.Compose([
+            torchvision.transforms.ToPILImage(),
+            torchvision.transforms.Resize((s,s)),
+            torchvision.transforms.ToTensor(), 
+        ])
+
+        image = transform(image)
+        return image
+        
+
+        

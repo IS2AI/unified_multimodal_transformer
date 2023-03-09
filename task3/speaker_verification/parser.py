@@ -10,13 +10,13 @@ def createParser():
     # dataset
     parser.add_argument ('-afile', '--annotation_file', default="/workdir/annotations_file_short_SF.csv",
                         help='Path to the annotation_file.')
-    parser.add_argument ('-ddir', '--dataset_dir', default="/workdir/data_v2",
+    parser.add_argument ('-ddir', '--dataset_dir', default="/workdir/sf_pv/data_v2",
                         help='Path to the dataset directory.')
 
     # train_dataloader
     parser.add_argument ('-n_b', '--n_batch', type=int, default=100, 
                         help='Number of batches in train dataloader')
-    parser.add_argument ('-n_w', '--n_ways', type=int, default=10,
+    parser.add_argument ('-n_w', '--n_ways', type=int, default=30,
                         help='Number of classes inside one batch. \
                             Maximum number of n_ways is 100, \
                             since maximum number of classes in train set is 100.')
@@ -30,6 +30,21 @@ def createParser():
                             The following inequality should be satisfied: \
                             n_support + n_query < 78, since minimum number of \
                             utterances per person in SpeakingFaces Dataset in train set is 78.')
+    
+    # loss
+    parser.add_argument ('-dist_type', '--dist_type', default='squared_euclidean',
+                        help='Distance type to calculate in Prototypical Loss function \
+                              (default: "squared_euclidean"). Can be either "squared_euclidean" or "cosine_similarity"')
+
+    # model
+    parser.add_argument ('-model_choice', '--model_choice', default="resnet1",
+                        help='if resnet1: resnet (from pytorch), \
+                              if resnet2: resnet (from timm), \
+                              if vit1: vit (from timm)')
+    parser.add_argument ('-exp_name', '--exp_name', default="exp1",
+                        help='Experiment name.')
+    
+
 
     # train
     parser.add_argument ('-n_epochs', '--num_epochs', type=int, default=100,

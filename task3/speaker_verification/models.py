@@ -2,40 +2,7 @@ from torchvision import models
 import torch.nn as nn
 import torch
 
-from models_handmade.resnet import ResNet34
-
-class SelfAttentivePool2d(nn.Module):
-    def __init__(self, input_dim=512):
-        super(SelfAttentivePool2d, self).__init__()
-        self.W = nn.Linear(input_dim, input_dim)
-        self.softmax = nn.Softmax(dim=1)
-
-    def preprocess(self,x):
-        """
-            [batch size, n_mels, n_frames, hidden dim] --> [batch size, sequence length, hidden dim]
-            [1, 3, 24, 512] --> [1, 72, 512]
-        """
-        return torch.flatten(x.permute(0, 2, 3, 1), start_dim=1, end_dim=2)
-        
-        
-    def forward(self, x):
-        """
-        output = Softmax(W @ H) * H
-        input:
-            x : size (N, T, H), N: batch size, T: sequence length, H: Hidden dimension
-        
-        attention_weight:
-            att_w : size (N, T, 1)
-        
-        return:
-            utter_rep: size (N, H)
-        """
-        H = self.preprocess(x)
-
-        attention_scores = self.softmax(self.W(H))
-        utter_rep = torch.sum(attention_scores * H, dim=1)
-
-        return utter_rep
+from speaker_verification.models_handmade.resnet import ResNet34
 
 # RESNET 34 pretrained
 class ResNet(nn.Module):
@@ -101,3 +68,40 @@ class ResNet(nn.Module):
         x = self.model(x)
         return x
 
+
+
+
+
+
+class SelfAttentivePool2d(nn.Module):
+    def __init__(self, input_dim=512):
+        super(SelfAttentivePool2d, self).__init__()
+        self.W = nn.Linear(input_dim, input_dim)
+        self.softmax = nn.Softmax(dim=1)
+
+    def preprocess(self,x):
+        """
+            [batch size, n_mels, n_frames, hidden dim] --> [batch size, sequence length, hidden dim]
+            [1, 3, 24, 512] --> [1, 72, 512]
+        """
+        return torch.flatten(x.permute(0, 2, 3, 1), start_dim=1, end_dim=2)
+        
+        
+    def forward(self, x):
+        """
+        output = Softmax(W @ H) * H
+        input:
+            x : size (N, T, H), N: batch size, T: sequence length, H: Hidden dimension
+        
+        attention_weight:
+            att_w : size (N, T, 1)
+        
+        return:
+            utter_rep: size (N, H)
+        """
+        H = self.preprocess(x)
+
+        attention_scores = self.softmax(self.W(H))
+        utter_rep = torch.sum(attention_scores * H, dim=1)
+
+        return utter_rep
