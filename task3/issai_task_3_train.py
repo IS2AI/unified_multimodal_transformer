@@ -4,6 +4,7 @@ from speaker_verification.dataset import ValidDataset
 from speaker_verification.sampler import ProtoSampler
 from speaker_verification.sampler import ValidSampler
 from speaker_verification.models import ResNet
+from speaker_verification.models import SelfAttentivePool2d
 from speaker_verification.loss import PrototypicalLoss
 from speaker_verification.train import train_model
 from speaker_verification.parser import createParser
@@ -49,6 +50,7 @@ if __name__== "__main__":
     # train 
     num_epochs = namespace.num_epochs
     save_dir = namespace.save_dir
+    modality = namespace.modality
 
     input_parameters = {}
     input_parameters["n_gpu"] = n_gpu
@@ -64,8 +66,9 @@ if __name__== "__main__":
     input_parameters["exp_name"] = exp_name
     input_parameters["num_epochs"] = num_epochs
     input_parameters["save_dir"] = save_dir
+    input_parameters["modality"] = modality
 
-    torch.save(input_parameters,f'{save_dir}/{exp_name}_input_parameters')
+    torch.save(input_parameters,f'{save_dir}/{modality}_{exp_name}_input_parameters')
     #------------------------------------------------------------------
 
     torch.manual_seed(seed_number)
@@ -82,14 +85,28 @@ if __name__== "__main__":
         model = ResNet(pretrained_weights=True, 
                         fine_tune=False, 
                         embedding_size=128, 
-                        modality = "rgb", 
+                        modality = modality, 
                         filter_size="default", 
                         from_torch=True
                     )
         image_transform = T.image_transform
         
     elif model_choice == "resnet2":
-        model = timm.create_model('resnet34', pretrained=True, num_classes=128)
+        if modality == "wav":
+            in_channels = 1
+        else:
+            in_channels = 3
+        model = timm.create_model('resnet34', pretrained=True, num_classes=128, in_chans=in_channels)
+        image_transform = T.image_transform
+
+    elif model_choice == "resnet3":
+        if modality == "wav":
+            in_channels = 1
+            model = timm.create_model('resnet34', pretrained=True, num_classes=128, in_chans=in_channels)
+            model.global_pool = SelfAttentivePool2d()
+        else:
+            in_channels = 3
+            model = timm.create_model('resnet34', pretrained=True, num_classes=128, in_chans=in_channels)
         image_transform = T.image_transform
 
     elif model_choice == "vit1":
@@ -145,7 +162,8 @@ if __name__== "__main__":
                         device,
                         num_epochs,
                         save_dir,
-                        exp_name)
+                        exp_name,
+                        modality)
 
 
 

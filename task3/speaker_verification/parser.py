@@ -51,5 +51,10 @@ def createParser():
                         help='Number of epochs in training process.')
     parser.add_argument ('-save_dir', '--save_dir', default="/workdir/results",
                         help='Path to the directory where output data will be saved.')
+    parser.add_argument ('-modality', '--modality', choices=("rgb","thr", "wav"), default="rgb",
+                        help='Allows to choose modality, it can be either "rgb" or "thrm". \
+                            If "rgb" it means model train and evaluate on rgb images, \
+                            If "thr", it means model train and evaluate on thermal images, \
+                            If "wav", it means model train and evaluate on wav files.')
 
     return parser

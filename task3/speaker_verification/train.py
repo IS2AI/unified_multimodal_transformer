@@ -19,7 +19,8 @@ def train_model(model,
                 device,
                 num_epochs,
                 save_dir,
-                exp_name):
+                exp_name,
+                modality='rgb'):
 
     logs = {}
     logs['train_loss'] = []
@@ -48,7 +49,7 @@ def train_model(model,
                                   criterion,
                                   optimizer,
                                   device,
-                                  modality='rgb')
+                                  modality)
         
         end_train = timer()
         logs['train_time_min'].append((end_train - start_train)/60)
@@ -58,7 +59,8 @@ def train_model(model,
         model, val_eer, val_acc = evaluate_single_epoch(model, 
                                   valid_dataloader,
                                   epoch,
-                                  device)
+                                  device,
+                                  modality)
 
         end_val = timer()
         logs['eval_time_min'].append((end_val - start_val)/60)
@@ -73,19 +75,19 @@ def train_model(model,
 
         if logs['best_eer'] > val_eer:
             logs['best_eer'] = val_eer
-            torch.save(model.state_dict(), f"{save_dir}/{exp_name}_best_eer.pth")
+            torch.save(model.state_dict(), f"{save_dir}/{modality}_{exp_name}_best_eer.pth")
             print("Best eer model saved at epoch {}".format(epoch))
 
         if logs['best_acc'] < val_acc:
             logs['best_acc'] = val_acc
-            torch.save(model.state_dict(), f"{save_dir}/{exp_name}_best_acc.pth")
+            torch.save(model.state_dict(), f"{save_dir}/{modality}_{exp_name}_best_acc.pth")
             print("Best acc model saved at epoch {}".format(epoch))
         
         end = timer()
         print("Time elapsed:",(end - start)/60," minutes")
         logs['epoch_time_min'].append((end - start)/60)
 
-        torch.save(logs,f'{save_dir}/{exp_name}_logs')
+        torch.save(logs,f'{save_dir}/{modality}_{exp_name}_logs')
     
     del logs
     gc.collect()
@@ -163,13 +165,20 @@ def evaluate_single_epoch(model,
 
         id1, id2, labels = batch
 
-        wav_id1, rgb_id1, thr_id1, label_id1 = id1
-        wav_id2, rgb_id2, thr_id2, label_id2 = id2
+        wav_id1, rgb_id1, thr_id1, _ = id1
+        wav_id2, rgb_id2, thr_id2, _ = id2
 
         if modality == "rgb":
-
             data_id1 = rgb_id1.to(device)
             data_id2 = rgb_id2.to(device)
+
+        elif modality == "thr":
+            data_id1 = thr_id1.to(device)
+            data_id2 = thr_id2.to(device)
+
+        elif modality == "wav":
+            data_id1 = wav_id1.to(device)
+            data_id2 = wav_id2.to(device)
 
         with torch.no_grad():
             id1_out = model(data_id1)
