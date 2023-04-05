@@ -8,7 +8,7 @@ def createParser():
                         help='Number of GPU core.')
 
     # dataset
-    parser.add_argument ('-afile', '--annotation_file', default="/workdir/annotations_file_short_SF.csv",
+    parser.add_argument ('-afile', '--annotation_file', default="/workdir/Speaker_Verification_version_1.0/annotations_file_short_SF.csv",
                         help='Path to the annotation_file.')
     parser.add_argument ('-ddir', '--dataset_dir', default="/workdir/sf_pv/data_v2",
                         help='Path to the dataset directory.')
