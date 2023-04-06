@@ -1,4 +1,4 @@
-# Speaker-Verification-task3
+# Speaker-Verification
 
 ## How to launch 
 1. Docker container
