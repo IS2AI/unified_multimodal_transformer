@@ -66,7 +66,10 @@ if __name__== "__main__":
     input_parameters["n_ways"] = n_ways
     input_parameters["n_support"] = n_support
     input_parameters["n_query"] = n_query
+    input_parameters["valid_batch_size"] = valid_batch_size
+    input_parameters["dist_type"] = dist_type
     input_parameters["model_choice"] = model_choice
+    input_parameters["fine_tune"] = fine_tune
     input_parameters["exp_name"] = exp_name
     input_parameters["num_epochs"] = num_epochs
     input_parameters["save_dir"] = save_dir
