@@ -40,11 +40,15 @@ if __name__== "__main__":
     n_support = namespace.n_support
     n_query = namespace.n_query
 
+    #valid_dataloader
+    valid_batch_size = namespace.valid_batch_size
+
     # loss
     dist_type = namespace.dist_type
 
     # model
     model_choice = namespace.model_choice
+    fine_tune = namespace.fine_tune
     exp_name = namespace.exp_name
 
     # train 
@@ -83,7 +87,7 @@ if __name__== "__main__":
     # model
     if model_choice == "resnet1":
         model = ResNet(pretrained_weights=True, 
-                        fine_tune=False, 
+                        fine_tune=fine_tune, 
                         embedding_size=128, 
                         modality = modality, 
                         filter_size="default", 
@@ -114,6 +118,10 @@ if __name__== "__main__":
         img_transform  = T.Image_Transforms(model)
         image_transform = img_transform.timm
 
+    if fine_tune:
+        for param in model.parameters():
+            param.requires_grad = True
+
     model = model.to(device)
 
     # Dataset
@@ -138,7 +146,7 @@ if __name__== "__main__":
                             )
 
     valid_dataloader = DataLoader(dataset=valid_dataset,
-                            batch_size=64,
+                            batch_size=valid_batch_size,
                             shuffle=True,
                             num_workers=4, 
                             pin_memory=True)

@@ -8,7 +8,7 @@ def createParser():
                         help='Number of GPU core.')
 
     # dataset
-    parser.add_argument ('-afile', '--annotation_file', default="/workdir/Speaker_Verification_version_1.0/annotations_file_short_SF.csv",
+    parser.add_argument ('-afile', '--annotation_file', default="annotations_file_short_SF.csv",
                         help='Path to the annotation_file.')
     parser.add_argument ('-ddir', '--dataset_dir', default="/workdir/sf_pv/data_v2",
                         help='Path to the dataset directory.')
@@ -30,6 +30,9 @@ def createParser():
                             The following inequality should be satisfied: \
                             n_support + n_query < 78, since minimum number of \
                             utterances per person in SpeakingFaces Dataset in train set is 78.')
+    # valid_dataloader
+    parser.add_argument ('-valid_batch_size', '--valid_batch_size', type=int, default=64, 
+                        help='Batch size in valid dataloader')
     
     # loss
     parser.add_argument ('-dist_type', '--dist_type', default='squared_euclidean',
@@ -41,6 +44,12 @@ def createParser():
                         help='if resnet1: resnet (from pytorch), \
                               if resnet2: resnet (from timm), \
                               if vit1: vit (from timm)')
+    parser.add_argument ('-fine_tune', '--fine_tune', type=int, choices=(0,1), default=0,
+                        help='Allows to choose between two types of transfer learning: fine tuning and feature extraction. \
+                            If "1" it means fine tuning mode, i.e. train all weights,  \
+                            If "0", it means feature extraction mode, i.e. train last classifier layer. \
+                            For more details of the description of each mode, \
+                            read https://pytorch.org/tutorials/beginner/finetuning_torchvision_models_tutorial.html')
     parser.add_argument ('-exp_name', '--exp_name', default="exp1",
                         help='Experiment name.')
     
