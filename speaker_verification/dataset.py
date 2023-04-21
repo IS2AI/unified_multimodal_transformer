@@ -130,7 +130,6 @@ class ValidDataset(Dataset):
 
         label = self._get_label(id)
         path2wav, path2rgb, path2thr = self._get_sample_path(id)
-
         data_wav, sample_rate = torchaudio.load(path2wav) 
         data_rgb = io.imread(path2rgb)
         data_thr = io.imread(path2thr)

@@ -8,6 +8,9 @@ from speaker_verification.models import SelfAttentivePool2d
 from speaker_verification.loss import PrototypicalLoss
 from speaker_verification.train import train_model
 from speaker_verification.parser import createParser
+from speaker_verification.transforms import Audio_Transforms
+from speaker_verification.transforms import Image_Transforms
+from speaker_verification.models import Model
 
 import torch
 from torch.utils.data import DataLoader
@@ -31,8 +34,28 @@ if __name__== "__main__":
 
     # dataset
     ANNOTATIONS_FILE = namespace.annotation_file
-    DATASET_DIR = namespace.dataset_dir
-    PATH2DATASET = "/workdir/sf_pv"
+    PATH2DATASET = namespace.path2dataset
+    DATASET_DIR = f"{PATH2DATASET}/data_v2"
+
+    # model
+    library = namespace.library
+    model_name = namespace.model_name
+    fine_tune = namespace.fine_tune
+    pool=namespace.pool
+    exp_name = namespace.exp_name
+    pretrained_weights = namespace.pretrained_weights
+    embedding_size = namespace.embedding_size
+
+    # audio transforms
+    sample_rate = namespace.sample_rate
+    sample_duration=namespace.sample_duration # seconds
+    n_fft=namespace.n_fft # from Korean code
+    win_length=namespace.win_length
+    hop_length=namespace.hop_length
+    n_mels=namespace.n_mels
+
+    # image transform 
+    image_resize = namespace.image_resize
 
     # train_dataloader
     n_batch = namespace.n_batch
@@ -41,20 +64,16 @@ if __name__== "__main__":
     n_query = namespace.n_query
 
     #valid_dataloader
-    valid_batch_size = namespace.valid_batch_size
+    batch_size = namespace.batch_size
 
     # loss
     dist_type = namespace.dist_type
-
-    # model
-    model_choice = namespace.model_choice
-    fine_tune = namespace.fine_tune
-    exp_name = namespace.exp_name
 
     # train 
     num_epochs = namespace.num_epochs
     save_dir = namespace.save_dir
     modality = namespace.modality
+
 
     input_parameters = {}
     input_parameters["n_gpu"] = n_gpu
@@ -66,11 +85,28 @@ if __name__== "__main__":
     input_parameters["n_ways"] = n_ways
     input_parameters["n_support"] = n_support
     input_parameters["n_query"] = n_query
-    input_parameters["valid_batch_size"] = valid_batch_size
+    input_parameters["valid_batch_size"] = batch_size
     input_parameters["dist_type"] = dist_type
-    input_parameters["model_choice"] = model_choice
+    input_parameters["library"] = library
+
+    input_parameters["model_name"] = model_name
     input_parameters["fine_tune"] = fine_tune
+    input_parameters["pool"] = pool
     input_parameters["exp_name"] = exp_name
+    input_parameters["pretrained_weights"] = pretrained_weights
+    input_parameters["embedding_size"] = embedding_size
+
+    # audio transform
+    input_parameters["sample_rate"] = sample_rate
+    input_parameters["sample_duration"] = sample_duration
+    input_parameters["n_fft"] = n_fft
+    input_parameters["win_length"] = win_length
+    input_parameters["hop_length"] = hop_length
+    input_parameters["n_mels"] = n_mels
+
+    # image transform
+    input_parameters["image_resize"] = image_resize
+
     input_parameters["num_epochs"] = num_epochs
     input_parameters["save_dir"] = save_dir
     input_parameters["modality"] = modality
@@ -87,53 +123,37 @@ if __name__== "__main__":
 
     device = torch.device(f"cuda:{str(n_gpu)}" if torch.cuda.is_available() else "cpu")
 
-    # model
-    if model_choice == "resnet1":
-        model = ResNet(pretrained_weights=True, 
-                        fine_tune=fine_tune, 
-                        embedding_size=128, 
-                        modality = modality, 
-                        filter_size="default", 
-                        from_torch=True
-                    )
-        image_transform = T.image_transform
-        
-    elif model_choice == "resnet2":
-        if modality == "wav":
-            in_channels = 1
-        else:
-            in_channels = 3
-        model = timm.create_model('resnet34', pretrained=True, num_classes=128, in_chans=in_channels)
-        image_transform = T.image_transform
-
-    elif model_choice == "resnet3":
-        if modality == "wav":
-            in_channels = 1
-            model = timm.create_model('resnet34', pretrained=True, num_classes=128, in_chans=in_channels)
-            model.global_pool = SelfAttentivePool2d()
-        else:
-            in_channels = 3
-            model = timm.create_model('resnet34', pretrained=True, num_classes=128, in_chans=in_channels)
-        image_transform = T.image_transform
-
-    elif model_choice == "vit1":
-        model = timm.create_model("vit_base_patch16_224", pretrained=True, num_classes=128)
-        img_transform  = T.Image_Transforms(model)
-        image_transform = img_transform.timm
-
-    if fine_tune:
-        for param in model.parameters():
-            param.requires_grad = True
+    model = Model(library=library, 
+                    pretrained_weights=pretrained_weights, 
+                    fine_tune=fine_tune, 
+                    embedding_size=embedding_size, 
+                    modality = modality,
+                    model_name = model_name,
+                    pool=pool)
 
     model = model.to(device)
 
+    audio_T = Audio_Transforms(sample_rate=sample_rate,
+                                sample_duration=sample_duration, # seconds
+                                n_fft=n_fft, # from Korean code
+                                win_length=win_length,
+                                hop_length=hop_length,
+                                window_fn=torch.hamming_window,
+                                n_mels=n_mels)
+
+    image_T = Image_Transforms(model,
+                                library=library,
+                                model_name = model_name,
+                                resize=image_resize)
+
     # Dataset
     train_dataset = SpeakingFacesDataset(ANNOTATIONS_FILE,DATASET_DIR,'train',
-                                        image_transform=image_transform, 
-                                        audio_transform=T.audio_transform)
+                                    image_transform=image_T.transform, 
+                                    audio_transform=audio_T.transform)
+
     valid_dataset = ValidDataset(PATH2DATASET,'valid',
-                            image_transform=image_transform, 
-                            audio_transform=T.audio_transform)
+                                image_transform=image_T.transform, 
+                                audio_transform=audio_T.transform)
 
     # sampler
     train_sampler = ProtoSampler(train_dataset.labels,
@@ -149,7 +169,7 @@ if __name__== "__main__":
                             )
 
     valid_dataloader = DataLoader(dataset=valid_dataset,
-                            batch_size=valid_batch_size,
+                            batch_size=batch_size,
                             shuffle=True,
                             num_workers=4, 
                             pin_memory=True)
