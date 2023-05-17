@@ -11,14 +11,16 @@ from PIL import Image
 
 class Image_Transforms:
     def __init__(self, 
-                 model,
+                 model=None,
                  library="pytorch",
                  model_name = "resnet34",
                  resize=128):
 
         self.library = library
         self.model_name = model_name
-        self.model = model
+
+        if model:
+            self.model = model
 
         if model_name == "resnet34":
             self.transform_image = torchvision.transforms.Compose([

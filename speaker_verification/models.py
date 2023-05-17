@@ -163,6 +163,9 @@ class Model(nn.Module):
 
                 self.model.get_classifier().weight.requires_grad = True
                 self.model.get_classifier().bias.requires_grad = True
+        
+        elif library == "huggingface":
+            pass
 
     def forward(self, x):
         x = self.model(x)

@@ -92,5 +92,9 @@ def createParser():
                             If "rgb" it means model train and evaluate on rgb images, \
                             If "thr", it means model train and evaluate on thermal images, \
                             If "wav", it means model train and evaluate on wav files.')
+    parser.add_argument ('-wandb', '--wandb', type=int, choices=(0,1), default=1,
+                        help='Use wandb or not. \
+                            If "1" it means WanDB is used, \
+                            If "0", it means no.')
 
     return parser
