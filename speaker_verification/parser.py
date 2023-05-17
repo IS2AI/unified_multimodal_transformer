@@ -67,7 +67,7 @@ def createParser():
     # audio transforms
     parser.add_argument ('-sample_rate', '--sample_rate', type=int, default=16000,
                         help='Audio signal sample rate.')
-    parser.add_argument ('-sample_duration', '--sample_duration', type=float, default=3,
+    parser.add_argument ('-sample_duration', '--sample_duration', type=float, default=2,
                         help='Sample_duration in seconds.')
     parser.add_argument ('-n_fft', '--n_fft', type=int, default=512,
                         help='Size of FFT, creates n_fft // 2 + 1 bins')

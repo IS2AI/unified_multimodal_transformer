@@ -17,6 +17,7 @@ from torch.utils.data import DataLoader
 import numpy as np
 import random
 import timm
+import wandb
 
 from timeit import default_timer as timer
 
@@ -111,6 +112,39 @@ if __name__== "__main__":
     input_parameters["save_dir"] = save_dir
     input_parameters["modality"] = modality
 
+
+    # Wandb
+    wandb.login(key="77340cc6897c81e12e0e5beccd2bc6f29a1eacec")
+    run = wandb.init(# Set the project where this run will be logged
+                    project="Speaker Verification",
+                    # Track hyperparameters and run metadata
+                    name=f"{exp_name}", 
+                    config={
+                        "n_batch": n_batch,
+                        "n_ways": n_ways,
+                        "n_support": n_support,
+                        "n_query": n_query,
+                        "valid_batch_size": batch_size,
+                        "dist_type": dist_type,
+                        "library": library,
+                        "model_name": model_name,
+                        "fine_tune": fine_tune,
+                        "pool": pool,
+                        "exp_name": exp_name,
+                        "pretrained_weights": pretrained_weights,
+                        "embedding_size": embedding_size,
+                        "sample_rate": sample_rate,
+                        "sample_duration": sample_duration,
+                        "n_fft": n_fft,
+                        "win_length": win_length,
+                        "hop_length": hop_length,
+                        "n_mels": n_mels,
+                        "image_resize": image_resize,
+                        "num_epochs": num_epochs,
+                        "modality": modality,
+                    })
+
+
     torch.save(input_parameters,f'{save_dir}/{modality}_{exp_name}_input_parameters')
     #------------------------------------------------------------------
 
@@ -194,7 +228,11 @@ if __name__== "__main__":
                         num_epochs,
                         save_dir,
                         exp_name,
-                        modality)
+                        modality,
+                        wandb)
+
+    # # Mark the run as finished
+    wandb.finish()
 
 
 

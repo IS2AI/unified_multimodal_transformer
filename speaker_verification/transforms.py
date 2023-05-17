@@ -1,4 +1,5 @@
 import torch
+import torch.nn as nn
 import torchaudio
 import torchvision
 
@@ -40,13 +41,13 @@ class Image_Transforms:
 
 class Audio_Transforms:
     def __init__(self, 
-                sample_rate=16000,
-                sample_duration=3, # seconds
-                n_fft=512, # from Korean code
-                win_length=400,
-                hop_length=160,
-                window_fn=torch.hamming_window,
-                n_mels=40,
+                sample_rate,
+                sample_duration, # seconds
+                n_fft, # from Korean code
+                win_length,
+                hop_length,
+                window_fn,
+                n_mels,
                 ):
 
         self.sample_rate = sample_rate
@@ -60,11 +61,13 @@ class Audio_Transforms:
         self.to_MelSpectrogram =  torchaudio.transforms.MelSpectrogram(
             sample_rate=self.sample_rate,
             n_fft=self.n_fft,
-            win_length=self.win_length,
+            # win_length=self.win_length,
             hop_length=self.hop_length,
             window_fn=torch.hamming_window,
             n_mels=self.n_mels
         )
+
+        self.instancenorm = nn.InstanceNorm1d(n_mels)
 
     
     def transform(self, signal, sample_rate):
@@ -82,21 +85,24 @@ class Audio_Transforms:
         sample_length_signal = self.sample_duration * self.sample_rate # sample length of the audio signal
         length_signal = signal.shape[1]
         if length_signal < sample_length_signal:
-            num_missing_points = sample_length_signal - length_signal
+            num_missing_points = int(sample_length_signal - length_signal)
             dim_padding = (0, num_missing_points) # (left_pad, right_pad)
             # ex: dim_padding = (1,2) --> [1,1,1] -> [0,1,1,1,0,0]
             signal = torch.nn.functional.pad(signal, dim_padding)
         elif length_signal > sample_length_signal:
             middle_of_the_signal = length_signal // 2
-            left_edge = middle_of_the_signal - sample_length_signal // 2
-            right_edge = middle_of_the_signal + sample_length_signal // 2
+            left_edge = int(middle_of_the_signal - sample_length_signal // 2)
+            right_edge = int(middle_of_the_signal + sample_length_signal // 2)
             signal = signal[:,left_edge:right_edge]
             
         # wav --> melspectrogram: 
         # [1, 44733] - [n_audio_channels, points] --> [1, 64, 88] - [n_channels, n_mels, number of frames]
-        signal = self.to_MelSpectrogram(signal)
+        signal = self.to_MelSpectrogram(signal)  # (channel, n_mels, time) where time is the number of window hops (n_frame).
+        # signal = self.instancenorm(signal.squeeze()).unsqueeze(1).detach()
 
         return signal
+
+    
                 
 
 # old code

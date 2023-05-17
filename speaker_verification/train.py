@@ -20,7 +20,8 @@ def train_model(model,
                 num_epochs,
                 save_dir,
                 exp_name,
-                modality='rgb'):
+                modality,
+                wandb=None):
 
     logs = {}
     logs['train_loss'] = []
@@ -33,8 +34,6 @@ def train_model(model,
     logs['train_time_min'] = []
     logs['eval_time_min'] = []
     logs['epoch_time_min'] = []
-
-    
 
     for epoch in trange(num_epochs, desc="Epoch"):
         start = timer()
@@ -88,6 +87,13 @@ def train_model(model,
         logs['epoch_time_min'].append((end - start)/60)
 
         torch.save(logs,f'{save_dir}/{modality}_{exp_name}_logs')
+        
+        if wandb:
+            wandb.log({"train_loss": train_loss, 
+                   "train_acc": train_acc,
+                   "val_eer": val_eer,
+                   "val_acc": val_acc,
+                   })
     
     del logs
     gc.collect()
@@ -154,7 +160,7 @@ def evaluate_single_epoch(model,
                         val_dataloader,
                         epoch, 
                         device, 
-                        modality='rgb'):
+                        modality):
     model.eval()
     total_eer = 0
     total_accuracy = 0
