@@ -1,0 +1,103 @@
+wandb_version: 1
+
+n_batch:
+  desc: null
+  value: 200
+n_ways:
+  desc: null
+  value: 60
+n_support:
+  desc: null
+  value: 1
+n_query:
+  desc: null
+  value: 1
+valid_batch_size:
+  desc: null
+  value: 64
+dist_type:
+  desc: null
+  value: squared_euclidean
+library:
+  desc: null
+  value: timm
+model_name:
+  desc: null
+  value: resnet34
+fine_tune:
+  desc: null
+  value: 1
+pool:
+  desc: null
+  value: SAP
+exp_name:
+  desc: null
+  value: exp4_n_ways_60
+pretrained_weights:
+  desc: null
+  value: 1
+embedding_size:
+  desc: null
+  value: 128
+sample_rate:
+  desc: null
+  value: 16000
+sample_duration:
+  desc: null
+  value: 3.0
+n_fft:
+  desc: null
+  value: 1024
+win_length:
+  desc: null
+  value: 400
+hop_length:
+  desc: null
+  value: 512
+n_mels:
+  desc: null
+  value: 128
+image_resize:
+  desc: null
+  value: 128
+num_epochs:
+  desc: null
+  value: 60
+modality:
+  desc: null
+  value: wav
+_wandb:
+  desc: null
+  value:
+    python_version: 3.8.10
+    cli_version: 0.15.3
+    framework: torch
+    is_jupyter_run: false
+    is_kaggle_kernel: false
+    start_time: 1684439766.967704
+    t:
+      1:
+      - 1
+      - 5
+      - 41
+      - 49
+      - 53
+      - 55
+      - 63
+      2:
+      - 1
+      - 5
+      - 41
+      - 49
+      - 53
+      - 55
+      - 63
+      3:
+      - 2
+      - 13
+      - 16
+      - 23
+      4: 3.8.10
+      5: 0.15.3
+      8:
+      - 5

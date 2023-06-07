@@ -1,43 +1,51 @@
 import torch
-import torch.nn as nn
 import torchaudio
-import torchvision
+import torchvision.transforms as T
+from transformers import ASTFeatureExtractor
+from transformers import Wav2Vec2FeatureExtractor
 
-import timm
-from timm.data import resolve_data_config
-from timm.data.transforms_factory import create_transform
-
-from PIL import Image
 
 class Image_Transforms:
     def __init__(self, 
-                 model=None,
-                 library="pytorch",
-                 model_name = "resnet34",
-                 resize=128):
+                 library,
+                 model_name):
 
         self.library = library
         self.model_name = model_name
 
-        if model:
-            self.model = model
+        if self.library == "huggingface":
+            pass
+        elif self.library == "timm":
+            self.timm_init()
+        elif self.library == "pytorch":
+            self.pytorch_init()
 
-        if model_name == "resnet34":
-            self.transform_image = torchvision.transforms.Compose([
-            torchvision.transforms.ToPILImage(),
-            torchvision.transforms.Resize((resize,resize)),
-            torchvision.transforms.ToTensor(), 
-        ])
-
-        if model_name == "vit_base_patch16_224":
-            config = resolve_data_config({}, model=self.model)
-            self.transform_image = create_transform(**config)
-
-    def transform(self, image):
-  
+    def timm_init(self):
         if self.model_name == "vit_base_patch16_224":
-            image = Image.fromarray(image)
+            # n_channels = 3
+            self.transform_image=T.Compose([
+                T.ToPILImage(),
+                T.Resize(size=256, interpolation=T.InterpolationMode.BICUBIC, max_size=None, antialias=None),
+                T.CenterCrop(size=(224, 224)),
+                T.ToTensor(),
+                T.Normalize(mean=torch.tensor([0.4850]), std=torch.tensor([0.2290]))
+            ])
+        else:
+            self.transform_image = T.Compose([
+                T.ToPILImage(),
+                T.Resize((128,128)),
+                T.ToTensor(), 
+            ])
         
+    def pytorch_init(self):
+        self.transform_image = T.Compose([
+                T.ToPILImage(),
+                T.Resize((128,128)),
+                T.ToTensor(), 
+            ])
+
+    # MAIN TRANSFORM FUNCTION
+    def transform(self, image):
         return self.transform_image(image)
 
 
@@ -50,6 +58,8 @@ class Audio_Transforms:
                 hop_length,
                 window_fn,
                 n_mels,
+                model_name, 
+                library
                 ):
 
         self.sample_rate = sample_rate
@@ -59,20 +69,67 @@ class Audio_Transforms:
         self.hop_length = hop_length
         self.window_fn = window_fn
         self.n_mels = n_mels
+        self.model_name = model_name
+        self.library = library
 
+        if self.library == "huggingface":
+            self.huggingface_init()
+        elif self.library == "timm":
+            self.timm_init()
+        elif self.library == "pytorch":
+            self.pytorch_init()
+
+    def huggingface_init(self):
+        if self.model_name == "WavLM":
+            self.feature_extractor = Wav2Vec2FeatureExtractor.from_pretrained('microsoft/wavlm-base-sv')
+        elif self.model_name == "AST":
+            self.feature_extractor = ASTFeatureExtractor()
+
+    def timm_init(self):
         self.to_MelSpectrogram =  torchaudio.transforms.MelSpectrogram(
-            sample_rate=self.sample_rate,
-            n_fft=self.n_fft,
-            # win_length=self.win_length,
-            hop_length=self.hop_length,
-            window_fn=torch.hamming_window,
-            n_mels=self.n_mels
-        )
+                sample_rate=self.sample_rate,
+                n_fft=self.n_fft,
+                win_length=self.win_length,
+                hop_length=self.hop_length,
+                window_fn=self.window_fn,
+                n_mels=self.n_mels
+            )
 
-        self.instancenorm = nn.InstanceNorm1d(n_mels)
+        if self.model_name == "vit_base_patch16_224":
+            # n_channels = 1
+            self.vit_transform=T.Compose([
+                T.ToPILImage(),
+                T.Resize(size=256, interpolation=T.InterpolationMode.BICUBIC, max_size=None, antialias=None),
+                T.CenterCrop(size=(224, 224)),
+                T.ToTensor(),
+                # T.Normalize(mean=torch.tensor([0.4850]), std=torch.tensor([0.2290]))
+            ])
 
-    
+    def pytorch_init(self):
+        self.to_MelSpectrogram =  torchaudio.transforms.MelSpectrogram(
+                sample_rate=self.sample_rate,
+                n_fft=self.n_fft,
+                win_length=self.win_length,
+                hop_length=self.hop_length,
+                window_fn=self.window_fn,
+                n_mels=self.n_mels
+            )
+
+    # MAIN TRANSFORM FUNCTION
     def transform(self, signal, sample_rate):
+
+        signal = self.basic_transform(signal, sample_rate)
+
+        if self.library == "huggingface":
+            inputs = self.huggingface_transform(signal)
+        elif self.library == "timm":
+            inputs = self.timm_transform(signal)
+        elif self.library == "pytorch":
+            inputs = self.pytorch_transform(signal)
+        
+        return inputs
+    
+    def basic_transform(self, signal, sample_rate):
 
         # stereo --> mono
         if signal.shape[0] > 1:
@@ -96,66 +153,22 @@ class Audio_Transforms:
             left_edge = int(middle_of_the_signal - sample_length_signal // 2)
             right_edge = int(middle_of_the_signal + sample_length_signal // 2)
             signal = signal[:,left_edge:right_edge]
-            
-        # wav --> melspectrogram: 
-        # [1, 44733] - [n_audio_channels, points] --> [1, 64, 88] - [n_channels, n_mels, number of frames]
-        signal = self.to_MelSpectrogram(signal)  # (channel, n_mels, time) where time is the number of window hops (n_frame).
-        # signal = self.instancenorm(signal.squeeze()).unsqueeze(1).detach()
 
         return signal
-
     
-                
+    def huggingface_transform(self, audio):
+        input = audio.squeeze()
+        input = self.feature_extractor(input, sampling_rate=self.sample_rate, padding=True, return_tensors="pt")
+        input = input.input_values.squeeze()
+        return input
 
-# old code
+    def timm_transform(self, audio):
+        input = self.to_MelSpectrogram(audio)
+        if self.model_name == "vit_base_patch16_224":
+            # input = input.repeat(3, 1, 1)
+            input = self.vit_transform(input)
+        return input
 
-def audio_transform(signal, sample_rate):
-
-    # stereo --> mono
-    if signal.shape[0] > 1:
-        signal = torch.mean(signal, dim=0, keepdim=True)
-    
-    # sample_rate --> 16000
-    if sample_rate != 16000:
-        resampler = torchaudio.transforms.Resample(sample_rate, 16000)
-        signal = resampler(signal)
-
-    # normalize duration --> 3 seconds (mean duration in dataset)
-    sample_duration = 3 # seconds
-    sample_length_signal = sample_duration * 16000 # sample length of the audio signal
-    length_signal = signal.shape[1]
-    if length_signal < sample_length_signal:
-        num_missing_points = sample_length_signal - length_signal
-        dim_padding = (0, num_missing_points) # (left_pad, right_pad)
-        # ex: dim_padding = (1,2) --> [1,1,1] -> [0,1,1,1,0,0]
-        signal = torch.nn.functional.pad(signal, dim_padding)
-    elif length_signal > sample_length_signal:
-        middle_of_the_signal = length_signal // 2
-        left_edge = middle_of_the_signal - sample_length_signal // 2
-        right_edge = middle_of_the_signal + sample_length_signal // 2
-        signal = signal[:,left_edge:right_edge]
-        
-    # wav --> melspectrogram: 
-    # [1, 44733] - [n_audio_channels, points] --> [1, 64, 88] - [n_channels, n_mels, number of frames]
-    transform = torchaudio.transforms.MelSpectrogram(
-        sample_rate=16000,
-        n_fft=1024,
-        hop_length=512,
-        n_mels=64
-    )
-
-    return transform(signal)
-    
-def image_transform(image, resize=128):
-
-    transform = torchvision.transforms.Compose([
-            torchvision.transforms.ToPILImage(),
-            torchvision.transforms.Resize((resize,resize)),
-            torchvision.transforms.ToTensor(), 
-        ])
-
-    return transform(image)
-    
-        
-
-        
+    def pytorch_transform(self, audio):
+        input = self.to_MelSpectrogram(audio)
+        return input

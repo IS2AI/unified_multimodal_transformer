@@ -1,10 +1,6 @@
-from speaker_verification import transforms as T
-
 import os
 import pandas as pd
 from skimage import io
-import matplotlib.pyplot as plt
-
 from torch.utils.data import Dataset
 import torch
 import torchaudio
@@ -14,6 +10,7 @@ class SpeakingFacesDataset(Dataset):
     def __init__(self, annotations_file, 
                        dataset_dir, 
                        train_type, 
+                       data_type, # ['wav','rgb','thr']
                        image_transform=None, 
                        audio_transform=None
                 ):
@@ -22,6 +19,7 @@ class SpeakingFacesDataset(Dataset):
 
         self.dataset_dir = f'{dataset_dir}'
         self.train_type = train_type
+        self.data_type = data_type
         self.df_all = pd.read_csv(annotations_file)
         self.df_all = self.df_all[self.df_all['train_type'] == self.train_type]
         self.df_wav = self.df_all[self.df_all['data_type'] == 'wav']
@@ -45,17 +43,27 @@ class SpeakingFacesDataset(Dataset):
 
         path2wav, path2rgb, path2thr = self._get_sample_path(index)
 
-        data_wav, sample_rate = torchaudio.load(path2wav) 
-        data_rgb = io.imread(path2rgb)
-        data_thr = io.imread(path2thr)
+        data = {}
+        
+        if "wav" in self.data_type:
+            data["wav"], sample_rate = torchaudio.load(path2wav)
+            if self.audio_transform:
+                data["wav"] = self.audio_transform(data["wav"], sample_rate)
 
-        if self.audio_transform:
-            data_wav = self.audio_transform(data_wav, sample_rate)
-        if self.image_transform:
-            data_rgb = self.image_transform(data_rgb)
-            data_thr = self.image_transform(data_thr)
+        if "rgb" in self.data_type:
+            data["rgb"] = io.imread(path2rgb)
+            if self.image_transform:
+                data["rgb"] = self.image_transform(data["rgb"])
+            
+        if "thr" in self.data_type:
+            data["thr"] = io.imread(path2thr)
+            if self.image_transform:
+                data["thr"] = self.image_transform(data["thr"])
 
-        return (data_wav, data_rgb, data_thr, label)
+        data = dict(sorted(data.items()))
+        sample = (*list(data.values()), label)
+        
+        return sample
     
     def _get_sample_path(self, index):
 
@@ -66,10 +74,10 @@ class SpeakingFacesDataset(Dataset):
         df_sample = self.df_all[self.df_all.person_id == person_id]
         df_sample = df_sample[df_sample.utterance == utterance]
         df_sample = df_sample[df_sample.session_id == session_id]
-        
+
         path2wav = os.path.join(self.dataset_dir,f'sub_{person_id}',
-                            f'{session_id}', 'wav', 
-                            df_sample.iloc[0, 0])
+                        f'{session_id}', 'wav', 
+                        df_sample.iloc[0, 0])
 
         path2rgb = os.path.join(self.dataset_dir,f'sub_{person_id}',
                             f'{session_id}', 'rgb', f'{utterance}',
@@ -89,6 +97,7 @@ class SpeakingFacesDataset(Dataset):
 class ValidDataset(Dataset):
     def __init__(self, path2dataset, # path to sf_pv
                        train_type, 
+                       data_type,
                        image_transform=None, 
                        audio_transform=None
                 ):
@@ -96,6 +105,7 @@ class ValidDataset(Dataset):
         super(ValidDataset, self).__init__()
 
         self.path2dataset = path2dataset
+        self.data_type = data_type
 
         path2list = f'{path2dataset}/metadata/{train_type}_list_v2.txt'
 
@@ -126,21 +136,33 @@ class ValidDataset(Dataset):
 
         return id1_path, id2_path, pairs_label
 
-    def _get_data(self, id):
+    def _get_data(self, index):
 
-        label = self._get_label(id)
-        path2wav, path2rgb, path2thr = self._get_sample_path(id)
-        data_wav, sample_rate = torchaudio.load(path2wav) 
-        data_rgb = io.imread(path2rgb)
-        data_thr = io.imread(path2thr)
+        label = self._get_sample_label(index)
 
-        if self.audio_transform:
-            data_wav = self.audio_transform(data_wav, sample_rate)
-        if self.image_transform:
-            data_rgb = self.image_transform(data_rgb)
-            data_thr = self.image_transform(data_thr)
+        path2wav, path2rgb, path2thr = self._get_sample_path(index)
 
-        return (data_wav, data_rgb, data_thr, label)
+        data = {}
+        
+        if "wav" in self.data_type:
+            data["wav"], sample_rate = torchaudio.load(path2wav)
+            if self.audio_transform:
+                data["wav"] = self.audio_transform(data["wav"], sample_rate)
+
+        if "rgb" in self.data_type:
+            data["rgb"] = io.imread(path2rgb)
+            if self.image_transform:
+                data["rgb"] = self.image_transform(data["rgb"])
+            
+        if "thr" in self.data_type:
+            data["thr"] = io.imread(path2thr)
+            if self.image_transform:
+                data["thr"] = self.image_transform(data["thr"])
+
+        data = dict(sorted(data.items()))
+        sample = (*list(data.values()), label)
+        
+        return sample
     
     def _get_sample_path(self, id):
 
@@ -152,7 +174,7 @@ class ValidDataset(Dataset):
 
         return path2wav, path2rgb, path2thr
 
-    def _get_label(self, id):
+    def _get_sample_label(self, id):
         
         label = int(id.split("/")[2].split("_")[-1])
 

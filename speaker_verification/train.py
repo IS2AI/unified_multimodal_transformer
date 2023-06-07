@@ -4,7 +4,6 @@ import gc
 import torch
 import torch.nn.functional as F
 
-from speaker_verification.loss import PrototypicalLoss
 from speaker_verification.metrics import EER_
 from speaker_verification.metrics import accuracy_
 from timeit import default_timer as timer
@@ -20,7 +19,7 @@ def train_model(model,
                 num_epochs,
                 save_dir,
                 exp_name,
-                modality,
+                data_type,
                 wandb=None):
 
     logs = {}
@@ -48,7 +47,7 @@ def train_model(model,
                                   criterion,
                                   optimizer,
                                   device,
-                                  modality)
+                                  data_type)
         
         end_train = timer()
         logs['train_time_min'].append((end_train - start_train)/60)
@@ -59,7 +58,7 @@ def train_model(model,
                                   valid_dataloader,
                                   epoch,
                                   device,
-                                  modality)
+                                  data_type)
 
         end_val = timer()
         logs['eval_time_min'].append((end_val - start_val)/60)
@@ -74,19 +73,19 @@ def train_model(model,
 
         if logs['best_eer'] > val_eer:
             logs['best_eer'] = val_eer
-            torch.save(model.state_dict(), f"{save_dir}/{modality}_{exp_name}_best_eer.pth")
+            torch.save(model.state_dict(), f"{save_dir}/{data_type[0]}_{exp_name}_best_eer.pth")
             print("Best eer model saved at epoch {}".format(epoch))
 
         if logs['best_acc'] < val_acc:
             logs['best_acc'] = val_acc
-            torch.save(model.state_dict(), f"{save_dir}/{modality}_{exp_name}_best_acc.pth")
+            torch.save(model.state_dict(), f"{save_dir}/{data_type[0]}_{exp_name}_best_acc.pth")
             print("Best acc model saved at epoch {}".format(epoch))
         
         end = timer()
         print("Time elapsed:",(end - start)/60," minutes")
         logs['epoch_time_min'].append((end - start)/60)
 
-        torch.save(logs,f'{save_dir}/{modality}_{exp_name}_logs')
+        torch.save(logs,f'{save_dir}/{data_type[0]}_{exp_name}_logs')
         
         if wandb:
             wandb.log({"train_loss": train_loss, 
@@ -109,7 +108,7 @@ def train_singe_epoch(model,
                       criterion,
                       optimizer,
                       device,
-                      modality):
+                      data_type):
 
     model.train()
     pbar = tqdm(train_dataloader, desc=f'Train (epoch = {epoch})', leave=False)  
@@ -118,17 +117,15 @@ def train_singe_epoch(model,
     total_acc = 0
     for batch in pbar:
 
-        if modality == "rgb":
-            # data_wav, data_rgb, data_thr, label
-            _,rgb, _, _ = batch # we do not use labels from dataset
-            data = rgb.to(device)
-        elif modality == "thr":
-            # data_wav, data_rgb, data_thr, label
-            _,_, thr, _ = batch # we do not use labels from dataset
-            data = thr.to(device)
-        elif modality == "wav":
-            wav, _, _, _ = batch # we do not use labels from dataset
-            data = wav.to(device)
+        data_type = sorted(data_type)
+
+        if len(data_type) == 1:
+            data, label = batch
+            data = data.to(device)
+        elif len(data_type) == 2: # two modalities
+            pass
+        elif len(data_type) == 3: # three modalities
+            pass
             
         data = model(data)
 
@@ -159,8 +156,8 @@ def train_singe_epoch(model,
 def evaluate_single_epoch(model,
                         val_dataloader,
                         epoch, 
-                        device, 
-                        modality):
+                        device,
+                        data_type):
     model.eval()
     total_eer = 0
     total_accuracy = 0
@@ -169,22 +166,15 @@ def evaluate_single_epoch(model,
 
     for batch in pbar:
 
+        data_type = sorted(data_type)
         id1, id2, labels = batch
 
-        wav_id1, rgb_id1, thr_id1, _ = id1
-        wav_id2, rgb_id2, thr_id2, _ = id2
+        if len(data_type) == 1:
+            data_id1, _ = id1
+            data_id2, _ = id2
 
-        if modality == "rgb":
-            data_id1 = rgb_id1.to(device)
-            data_id2 = rgb_id2.to(device)
-
-        elif modality == "thr":
-            data_id1 = thr_id1.to(device)
-            data_id2 = thr_id2.to(device)
-
-        elif modality == "wav":
-            data_id1 = wav_id1.to(device)
-            data_id2 = wav_id2.to(device)
+            data_id1 = data_id1.to(device)
+            data_id2 = data_id2.to(device)
 
         with torch.no_grad():
             id1_out = model(data_id1)

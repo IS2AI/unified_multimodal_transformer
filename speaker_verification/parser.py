@@ -8,7 +8,7 @@ def createParser():
                         help='Number of GPU core.')
 
     # dataset
-    parser.add_argument ('-afile', '--annotation_file', default="/workdir/Speaker_Verification_version_1.0/Speaker-Verification/annotations_file_short_SF.csv",
+    parser.add_argument ('-afile', '--annotation_file', default="annotations_file_short_SF.csv",
                         help='Path to the annotation_file.')
     parser.add_argument ('-ddir', '--path2dataset', default="/workdir/sf_pv",
                         help='Path to the dataset directory.')
@@ -33,6 +33,10 @@ def createParser():
     # valid_dataloader
     parser.add_argument ('-b_s', '--batch_size', type=int, default=64, 
                         help='Batch size in valid dataloader')
+
+    # optimizer
+    parser.add_argument ('-weight_decay', '--weight_decay', type=float, default=0, 
+                        help='weight decay regularization parameter.')
     
     # loss
     parser.add_argument ('-dist_type', '--dist_type', default='squared_euclidean',
@@ -41,10 +45,10 @@ def createParser():
 
     # model
     parser.add_argument ('-library', '--library', default="pytorch", 
-                        choices=("pytorch","timm"),
+                        choices=("pytorch","timm","huggingface"),
                         help='Choose library from where to load model.')
     parser.add_argument ('-model_name', '--model_name', default="resnet34", 
-                        choices=("resnet34","vit_base_patch16_224"),
+                        choices=("resnet34","vit_base_patch16_224","AST","WavLM"),
                         help='Choose model to load.')
     parser.add_argument ('-pretrain_w', '--pretrained_weights', type=int, choices=(0,1), default=1,
                         help='Ways of weights initialization. \
@@ -87,7 +91,7 @@ def createParser():
                         help='Number of epochs in training process.')
     parser.add_argument ('-save_dir', '--save_dir', default="/workdir/results",
                         help='Path to the directory where output data will be saved.')
-    parser.add_argument ('-modality', '--modality', choices=("rgb","thr", "wav"), default="rgb",
+    parser.add_argument('-data_type', '--data_type', nargs='+', default=['rgb'],
                         help='Allows to choose modality, it can be either "rgb" or "thrm". \
                             If "rgb" it means model train and evaluate on rgb images, \
                             If "thr", it means model train and evaluate on thermal images, \

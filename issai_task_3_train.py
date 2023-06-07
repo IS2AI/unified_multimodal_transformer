@@ -1,10 +1,7 @@
-from speaker_verification import transforms as T
 from speaker_verification.dataset import SpeakingFacesDataset
 from speaker_verification.dataset import ValidDataset
 from speaker_verification.sampler import ProtoSampler
-from speaker_verification.sampler import ValidSampler
-from speaker_verification.models import ResNet
-from speaker_verification.models import SelfAttentivePool2d
+
 from speaker_verification.loss import PrototypicalLoss
 from speaker_verification.train import train_model
 from speaker_verification.parser import createParser
@@ -16,10 +13,7 @@ import torch
 from torch.utils.data import DataLoader
 import numpy as np
 import random
-import timm
 import wandb
-
-from timeit import default_timer as timer
 
 
 if __name__== "__main__":
@@ -70,10 +64,13 @@ if __name__== "__main__":
     # loss
     dist_type = namespace.dist_type
 
+    # optimizer
+    weight_decay = namespace.weight_decay
+
     # train 
     num_epochs = namespace.num_epochs
     save_dir = namespace.save_dir
-    modality = namespace.modality
+    data_type = namespace.data_type
     wandb_use = namespace.wandb
 
 
@@ -111,7 +108,8 @@ if __name__== "__main__":
 
     input_parameters["num_epochs"] = num_epochs
     input_parameters["save_dir"] = save_dir
-    input_parameters["modality"] = modality
+    input_parameters["data_type"] = data_type
+    input_parameters["weight_decay"] = weight_decay
 
 
     # Wandb
@@ -143,13 +141,14 @@ if __name__== "__main__":
                             "n_mels": n_mels,
                             "image_resize": image_resize,
                             "num_epochs": num_epochs,
-                            "modality": modality,
+                            "data_type": data_type,
+                            "weight_decay": weight_decay,
                         })
     else:
         wandb = None
 
 
-    torch.save(input_parameters,f'{save_dir}/{modality}_{exp_name}_input_parameters')
+    torch.save(input_parameters,f'{save_dir}/{data_type[0]}_{exp_name}_input_parameters')
     #------------------------------------------------------------------
 
     torch.manual_seed(seed_number)
@@ -162,36 +161,45 @@ if __name__== "__main__":
     device = torch.device(f"cuda:{str(n_gpu)}" if torch.cuda.is_available() else "cpu")
 
     model = Model(library=library, 
-                    pretrained_weights=pretrained_weights, 
-                    fine_tune=fine_tune, 
-                    embedding_size=embedding_size, 
-                    modality = modality,
-                    model_name = model_name,
-                    pool=pool)
+            pretrained_weights=pretrained_weights, 
+            fine_tune=fine_tune, 
+            embedding_size=embedding_size,
+            model_name = model_name,
+            pool=pool,
+            data_type=data_type)
 
     model = model.to(device)
 
-    audio_T = Audio_Transforms(sample_rate=sample_rate,
-                                sample_duration=sample_duration, # seconds
-                                n_fft=n_fft, # from Korean code
-                                win_length=win_length,
-                                hop_length=hop_length,
-                                window_fn=torch.hamming_window,
-                                n_mels=n_mels)
+    audio_T = None
+    image_T = None
 
-    image_T = Image_Transforms(model,
-                                library=library,
-                                model_name = model_name,
-                                resize=image_resize)
+    if 'wav' in data_type:
+        audio_T = Audio_Transforms(sample_rate=sample_rate,
+                                    sample_duration=sample_duration,
+                                    n_fft=n_fft, 
+                                    win_length=win_length,
+                                    hop_length=hop_length,
+                                    window_fn=torch.hamming_window,
+                                    n_mels=n_mels,
+                                    model_name=model_name,
+                                    library=library)
+        audio_T = audio_T.transform
+
+    if 'rgb' in data_type or 'thr' in data_type:
+        image_T = Image_Transforms(model_name=model_name,
+                                library=library)
+        image_T = image_T.transform  
 
     # Dataset
     train_dataset = SpeakingFacesDataset(ANNOTATIONS_FILE,DATASET_DIR,'train',
-                                    image_transform=image_T.transform, 
-                                    audio_transform=audio_T.transform)
+                                    image_transform=image_T, 
+                                    audio_transform=audio_T,
+                                    data_type=data_type)
 
     valid_dataset = ValidDataset(PATH2DATASET,'valid',
-                                image_transform=image_T.transform, 
-                                audio_transform=audio_T.transform)
+                                image_transform=image_T, 
+                                audio_transform=audio_T,
+                                data_type=data_type)
 
     # sampler
     train_sampler = ProtoSampler(train_dataset.labels,
@@ -202,36 +210,34 @@ if __name__== "__main__":
 
     # dataloader
     train_dataloader = DataLoader(dataset=train_dataset, 
-                            batch_sampler=train_sampler,
-                            num_workers=4)
+                            batch_sampler=train_sampler)
 
     valid_dataloader = DataLoader(dataset=valid_dataset,
                             batch_size=batch_size,
-                            shuffle=True,
-                            num_workers=4)
+                            shuffle=True)
 
     # loss
     criterion = PrototypicalLoss(dist_type=dist_type)
     criterion = criterion.to(device)
 
     # optimizer + scheduler
-    optimizer = torch.optim.Adam(model.parameters(), lr = 1e-3, weight_decay = 0)
+    optimizer = torch.optim.AdamW(model.parameters(), lr = 1e-3, weight_decay = weight_decay)
     scheduler = torch.optim.lr_scheduler.StepLR(optimizer, 10, gamma=0.95)
 
     # train
-    model = train_model(model,
-                        train_dataloader, 
-                        valid_dataloader,
-                        train_sampler,
-                        criterion,
-                        optimizer,
-                        scheduler,
-                        device,
-                        num_epochs,
-                        save_dir,
-                        exp_name,
-                        modality,
-                        wandb)
+    model = train_model(model=model,
+                    train_dataloader=train_dataloader, 
+                    valid_dataloader=valid_dataloader,
+                    train_sampler=train_sampler,
+                    criterion=criterion,
+                    optimizer=optimizer,
+                    scheduler=scheduler,
+                    device=device,
+                    num_epochs=num_epochs,
+                    save_dir=save_dir,
+                    exp_name=exp_name,
+                    data_type=data_type,
+                    wandb=wandb)
 
     if wandb_use:
         # # Mark the run as finished
