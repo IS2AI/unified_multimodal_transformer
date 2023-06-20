@@ -1,4 +1,4 @@
-from tqdm import tqdm
+from tqdm.auto import tqdm
 from tqdm import trange
 import gc
 import torch

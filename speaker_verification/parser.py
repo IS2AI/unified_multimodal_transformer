@@ -7,11 +7,24 @@ def createParser():
     parser.add_argument ('-n_gpu', '--n_gpu', type=int, default=0,
                         help='Number of GPU core.')
 
-    # dataset
+    # train dataset
     parser.add_argument ('-afile', '--annotation_file', default="annotations_file_short_SF.csv",
                         help='Path to the annotation_file.')
-    parser.add_argument ('-ddir', '--path2dataset', default="/workdir/sf_pv",
+    parser.add_argument ('-path_to_train_dataset', '--path_to_train_dataset', default="/workdir/sf_pv/data_v2",
                         help='Path to the dataset directory.')
+    parser.add_argument ('-dataset_type', '--dataset_type', default="SF", choices=("SF","VX2"),
+                        help='SF - Speaking Faces, VX2 - Vox Celeb 2.')
+
+    # valid dataset - path_to_valid_dataset
+    parser.add_argument ('-path_to_valid_dataset', '--path_to_valid_dataset', 
+                         default='/workdir/sf_pv',
+                        help='path to validation dataset: for SF - sf_pv, \
+                              for VoxCeleb1 - VoxCeleb1/test.')
+    parser.add_argument ('-path_to_valid_list', '--path_to_valid_list', 
+                         default='/workdir/sf_pv/metadata/valid_list_v2.txt',
+                        help='path to validation list: for SF - sf_pv/metadata/valid_list_v2.txt \
+                              for VoxCeleb1 - VoxCeleb1/metadata/test_list_vc_v2.txt')
+    
 
     # train_dataloader
     parser.add_argument ('-n_b', '--n_batch', type=int, default=100, 
@@ -96,7 +109,7 @@ def createParser():
                             If "rgb" it means model train and evaluate on rgb images, \
                             If "thr", it means model train and evaluate on thermal images, \
                             If "wav", it means model train and evaluate on wav files.')
-    parser.add_argument ('-wandb', '--wandb', type=int, choices=(0,1), default=1,
+    parser.add_argument ('-wandb', '--wandb', type=int, choices=(0,1), default=0,
                         help='Use wandb or not. \
                             If "1" it means WanDB is used, \
                             If "0", it means no.')

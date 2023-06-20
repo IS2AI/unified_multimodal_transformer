@@ -4,8 +4,248 @@ from skimage import io
 from torch.utils.data import Dataset
 import torch
 import torchaudio
+import numpy as np
+from os import listdir
+from os.path import isfile, join
 
-# where we load id by annotation file 
+from sklearn.preprocessing import LabelEncoder
+
+
+# Universal Dataset with VoxCeleb2, Speaking Faces or joint format 
+class TrainDataset(Dataset):
+    def __init__(self, annotations_file, 
+                       path_to_train_dataset, 
+                       data_type, 
+                       dataset_type, # VX2 or SF
+                       train_type,
+                       image_transform=None, 
+                       audio_transform=None):
+
+        """ 
+        Input parameters:
+            annotations_file: annotation file joined VX2 + SF.
+            path_to_train_dataset: path to the directory where all datasets are located.
+            dataset_type: can be either "SF", "VX2".
+            train_type: "train"
+            data_type: list of data types, ex: ['wav', 'rgb', 'thr']
+            image_transform: image transform
+            audio_transform: audio transform
+        """
+
+        self.path_to_train_dataset = f'{path_to_train_dataset}'
+        self.train_type = train_type
+        self.data_type = data_type
+        self.dataset_type = dataset_type
+
+        self.df_all = pd.read_csv(annotations_file)
+        self.df_all = self.df_all[self.df_all["dataset"] == self.dataset_type]
+
+        self.df_all = self.df_all[self.df_all['train_type'] == self.train_type]
+        self.df_wav = self.df_all[self.df_all['data_type'] == 'wav']
+
+        self.df_wav.reset_index(inplace=True)
+        self.df_wav = self.df_wav.drop(["index"], axis=1)
+
+        self.labels = self.df_wav["new_ids"].values
+
+        self.encoder = LabelEncoder()
+        self.encoder.fit(np.unique(self.labels))
+        self.labels = self.encoder.transform(self.labels)
+
+        self.image_transform = image_transform
+        self.audio_transform = audio_transform
+
+    def __len__(self):
+        return len(self.df_wav)
+
+    def __getitem__(self, index):
+
+        sample = self._get_data(index)
+        return sample
+
+    def _get_data(self, index):
+
+        label = self._get_sample_label(index)
+
+        path2wav, path2rgb, path2thr = self._get_sample_path(index)
+
+        data = {}
+        
+        if "wav" in self.data_type:
+            if path2wav:
+                data["wav"], sample_rate = torchaudio.load(path2wav)
+            if self.audio_transform:
+                data["wav"] = self.audio_transform(data["wav"], sample_rate)
+
+        if "rgb" in self.data_type:
+            if path2rgb:
+                data["rgb"] = io.imread(path2rgb)
+            if self.image_transform:
+                data["rgb"] = self.image_transform(data["rgb"])
+            
+        if "thr" in self.data_type:
+            if path2thr:
+                data["thr"] = io.imread(path2thr)
+            if self.image_transform:
+                data["thr"] = self.image_transform(data["thr"])
+
+        data = dict(sorted(data.items()))
+        sample = (*list(data.values()), label)
+        
+        return sample
+
+    def _get_sample_path(self, index):
+
+        dataset_type = self.df_wav.loc[index, "dataset"]
+        person_id = self.df_wav.loc[index, "person_id"]
+        session_id = self.df_wav.loc[index, "session_id"]
+        utterance = int(self.df_wav.loc[index, "utterance"])
+
+        df_sample = self.df_all[self.df_all.dataset == dataset_type]
+        df_sample = df_sample[df_sample.person_id == person_id]
+        df_sample = df_sample[df_sample.session_id == session_id]
+        df_sample = df_sample[df_sample.utterance == utterance]
+
+        if self.dataset_type == "VX2":
+            n_zeros = 5 - len(str(person_id))
+            person_id_real = 'id'+ '0'*n_zeros + str(person_id)
+            
+        elif self.dataset_type == "SF":
+            person_id_real = f'sub_{str(person_id)}'
+
+        if 'wav' in df_sample['data_type'].values:
+            path2wav = os.path.join(self.path_to_train_dataset, person_id_real,
+                            f'{session_id}', 'wav', 
+                            df_sample[df_sample['data_type'] == 'wav'].iloc[0, 0])
+        else:
+            path2wav = None
+
+        if 'rgb' in df_sample['data_type'].values:
+            path2rgb = os.path.join(self.path_to_train_dataset, person_id_real,
+                            f'{session_id}', 'rgb', f'{utterance}',
+                            df_sample[df_sample['data_type'] == 'rgb'].iloc[0, 0])
+        else:
+            path2rgb = None
+
+        if 'thr' in df_sample['data_type'].values:
+            path2thr = os.path.join(self.path_to_train_dataset, person_id_real,
+                            f'{session_id}', 'thr', f'{utterance}',
+                            df_sample[df_sample['data_type'] == 'thr'].iloc[0, 0])
+        else:
+            path2thr = None
+
+        return path2wav, path2rgb, path2thr
+
+    def _get_sample_label(self, index):
+        # return torch.tensor(self.df_wav.loc[index,"new_ids"])
+        return torch.tensor(self.labels[index])
+
+
+class ValidDataset(Dataset):
+    def __init__(self, path_to_valid_dataset, 
+                       path_to_valid_list, 
+                       data_type,
+                       dataset_type,
+                       image_transform=None, 
+                       audio_transform=None
+                ):
+
+        super(ValidDataset, self).__init__()
+
+        self.path_to_valid_dataset = path_to_valid_dataset
+        self.data_type = data_type
+        self.dataset_type = dataset_type
+        self.path_to_valid_list = path_to_valid_list
+
+        with open(self.path_to_valid_list) as f:
+            self.pairs_list = f.read().splitlines()
+        
+        self.image_transform = image_transform
+        self.audio_transform = audio_transform
+
+    def __len__(self):
+        return len(self.pairs_list)
+
+    def __getitem__(self, index):
+
+        id1_path, id2_path, label =  self._get_pair(index)
+
+        id1 = self._get_data(id1_path)
+        id2 = self._get_data(id2_path)
+
+        return id1, id2, label
+
+    def _get_pair(self, index):
+        data_info = self.pairs_list[index].split()
+
+        pairs_label = int(data_info[0]) # same or different: 0 or 1
+        id1_path = data_info[1] # here is a path to the wav
+        id2_path = data_info[2]
+
+        return id1_path, id2_path, pairs_label
+
+    def _get_data(self, id_path):
+
+        label = self._get_sample_label(id_path)
+
+        path2wav, path2rgb, path2thr = self._get_sample_path(id_path)
+
+        data = {}
+        
+        if "wav" in self.data_type:
+            data["wav"], sample_rate = torchaudio.load(path2wav)
+            if self.audio_transform:
+                data["wav"] = self.audio_transform(data["wav"], sample_rate)
+
+        if "rgb" in self.data_type:
+            data["rgb"] = io.imread(path2rgb)
+            if self.image_transform:
+                data["rgb"] = self.image_transform(data["rgb"])
+            
+        if "thr" in self.data_type:
+            data["thr"] = io.imread(path2thr)
+            if self.image_transform:
+                data["thr"] = self.image_transform(data["thr"])
+
+        data = dict(sorted(data.items()))
+        sample = (*list(data.values()), label)
+        
+        return sample
+    
+    def _get_sample_path(self, id_path):
+        
+        if self.dataset_type == "SF":
+            path = "/".join(self.path_to_valid_dataset.split("/")[:-1]) # path to sf_pv
+
+            path2wav = f"{path}/{id_path}"
+            path2rgb = f"{path}/" + "/".join(id_path.split("/")[:-2]) + "/" + "rgb" + "/" + id_path.split("/")[-1].split(".")[0] + "/1.jpg"
+            path2thr = f"{path}/" + "/".join(id_path.split("/")[:-2]) + "/" + "thr" + "/" + id_path.split("/")[-1].split(".")[0] + "/1.jpg"
+        elif self.dataset_type == "VX2":
+            path = self.path_to_valid_dataset
+
+            path2wav = f"{path}/{id_path}"
+
+            path2rgb = f"{path}/" + "/".join(id_path.split("/")[:-2]) + "/" + "rgb" + "/"  + str(int(id_path.split("/")[-1].split(".")[0])) 
+            onlyfiles = [f for f in listdir(path2rgb) if isfile(join(path2rgb, f)) and 'jpg' in f]
+            path2rgb = path2rgb + "/" + onlyfiles[0]
+
+            path2thr = f"{path}/" + "/".join(id_path.split("/")[:-2]) + "/" + "thr" + "/" + str(int(id_path.split("/")[-1].split(".")[0]))
+            onlyfiles = [f for f in listdir(path2thr) if isfile(join(path2thr, f)) and 'jpg' in f]
+            path2thr = path2thr + "/" + onlyfiles[0]
+
+        return path2wav, path2rgb, path2thr
+
+    def _get_sample_label(self, id_path):
+        
+        if self.dataset_type == "SF":
+            label = int(id_path.split("/")[2].split("_")[-1])
+        elif self.dataset_type == "VX2":
+            label = int(id_path.split('/')[0][2:])
+
+        return label
+
+
+# load id by annotation file: Just Speaking Faces
 class SpeakingFacesDataset(Dataset):
     def __init__(self, annotations_file, 
                        dataset_dir, 
@@ -91,91 +331,3 @@ class SpeakingFacesDataset(Dataset):
 
     def _get_sample_label(self, index):
         return torch.tensor(self.df_wav.iloc[index, 4])
-
-
-# validation set created from valid_lists_v2.txt
-class ValidDataset(Dataset):
-    def __init__(self, path2dataset, # path to sf_pv
-                       train_type, 
-                       data_type,
-                       image_transform=None, 
-                       audio_transform=None
-                ):
-
-        super(ValidDataset, self).__init__()
-
-        self.path2dataset = path2dataset
-        self.data_type = data_type
-
-        path2list = f'{path2dataset}/metadata/{train_type}_list_v2.txt'
-
-        with open(path2list) as f:
-            self.pairs_list = f.read().splitlines()
-        
-        self.image_transform = image_transform
-        self.audio_transform = audio_transform
-
-    def __len__(self):
-        return len(self.pairs_list)
-
-    def __getitem__(self, index):
-
-        id1_path, id2_path, label =  self._get_pair(index)
-
-        id1 = self._get_data(id1_path)
-        id2 = self._get_data(id2_path)
-
-        return id1, id2, label
-
-    def _get_pair(self, index):
-        data_info = self.pairs_list[index].split()
-
-        pairs_label = int(data_info[0]) # same or different: 0 or 1
-        id1_path = data_info[1] # here is a path to the wav
-        id2_path = data_info[2]
-
-        return id1_path, id2_path, pairs_label
-
-    def _get_data(self, index):
-
-        label = self._get_sample_label(index)
-
-        path2wav, path2rgb, path2thr = self._get_sample_path(index)
-
-        data = {}
-        
-        if "wav" in self.data_type:
-            data["wav"], sample_rate = torchaudio.load(path2wav)
-            if self.audio_transform:
-                data["wav"] = self.audio_transform(data["wav"], sample_rate)
-
-        if "rgb" in self.data_type:
-            data["rgb"] = io.imread(path2rgb)
-            if self.image_transform:
-                data["rgb"] = self.image_transform(data["rgb"])
-            
-        if "thr" in self.data_type:
-            data["thr"] = io.imread(path2thr)
-            if self.image_transform:
-                data["thr"] = self.image_transform(data["thr"])
-
-        data = dict(sorted(data.items()))
-        sample = (*list(data.values()), label)
-        
-        return sample
-    
-    def _get_sample_path(self, id):
-
-        path = "/".join(self.path2dataset.split("/")[:-1]) # path to sf_pv
-
-        path2wav = f"{path}/{id}"
-        path2rgb = f"{path}/" + "/".join(id.split("/")[:-2]) + "/" + "rgb" + "/" + id.split("/")[-1].split(".")[0] + "/1.jpg"
-        path2thr = f"{path}/" + "/".join(id.split("/")[:-2]) + "/" + "thr" + "/" + id.split("/")[-1].split(".")[0] + "/1.jpg"
-
-        return path2wav, path2rgb, path2thr
-
-    def _get_sample_label(self, id):
-        
-        label = int(id.split("/")[2].split("_")[-1])
-
-        return label

@@ -88,7 +88,7 @@ class Model(nn.Module):
             model = self.pytorch_model(in_channels = 1)
         elif self.library == "timm":
             print("timm model is used.")
-            model = self.timm_model(in_channels = 1)
+            model = self.timm_model(in_channels = 3)
 
         return model
     

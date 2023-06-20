@@ -1,4 +1,4 @@
-from speaker_verification.dataset import SpeakingFacesDataset
+from speaker_verification.dataset import TrainDataset
 from speaker_verification.dataset import ValidDataset
 from speaker_verification.sampler import ProtoSampler
 
@@ -14,6 +14,7 @@ from torch.utils.data import DataLoader
 import numpy as np
 import random
 import wandb
+import os
 
 
 if __name__== "__main__":
@@ -28,9 +29,11 @@ if __name__== "__main__":
     seed_number = 42
 
     # dataset
-    ANNOTATIONS_FILE = namespace.annotation_file
-    PATH2DATASET = namespace.path2dataset
-    DATASET_DIR = f"{PATH2DATASET}/data_v2"
+    annotations_file = namespace.annotation_file
+    path_to_train_dataset = namespace.path_to_train_dataset
+    path_to_valid_dataset = namespace.path_to_valid_dataset
+    path_to_valid_list = namespace.path_to_valid_list
+    dataset_type = namespace.dataset_type
 
     # model
     library = namespace.library
@@ -70,16 +73,20 @@ if __name__== "__main__":
     # train 
     num_epochs = namespace.num_epochs
     save_dir = namespace.save_dir
-    data_type = namespace.data_type
+    data_type = namespace.data_type # ['wav', 'rgb']
     wandb_use = namespace.wandb
 
 
     input_parameters = {}
     input_parameters["n_gpu"] = n_gpu
     input_parameters["seed_number"] = seed_number
-    input_parameters["annotation_file"] = ANNOTATIONS_FILE
-    input_parameters["dataset_dir"] = DATASET_DIR
-    input_parameters["path2dataset"] = PATH2DATASET
+
+    input_parameters["annotation_file"] = annotations_file
+    input_parameters["path_to_train_dataset"] = path_to_train_dataset
+    input_parameters["path_to_valid_dataset"] = path_to_valid_dataset
+    input_parameters["path_to_valid_list"] = path_to_valid_list
+    input_parameters["dataset_type"] = dataset_type
+
     input_parameters["n_batch"] = n_batch
     input_parameters["n_ways"] = n_ways
     input_parameters["n_support"] = n_support
@@ -157,6 +164,9 @@ if __name__== "__main__":
     random.seed(seed_number)
     torch.backends.cudnn.enabled=False
     torch.backends.cudnn.deterministic=True
+    os.environ['OMP_NUM_THREADS'] = '1'
+    os.environ['MKL_NUM_THREADS'] = '1'
+    torch.set_num_threads(1)
 
     device = torch.device(f"cuda:{str(n_gpu)}" if torch.cuda.is_available() else "cpu")
 
@@ -191,15 +201,21 @@ if __name__== "__main__":
         image_T = image_T.transform  
 
     # Dataset
-    train_dataset = SpeakingFacesDataset(ANNOTATIONS_FILE,DATASET_DIR,'train',
-                                    image_transform=image_T, 
-                                    audio_transform=audio_T,
-                                    data_type=data_type)
-
-    valid_dataset = ValidDataset(PATH2DATASET,'valid',
+    train_dataset = TrainDataset(annotations_file=annotations_file, 
+                                path_to_train_dataset=path_to_train_dataset, 
+                                data_type=data_type, 
+                                dataset_type=dataset_type,
+                                train_type = 'train',
                                 image_transform=image_T, 
-                                audio_transform=audio_T,
-                                data_type=data_type)
+                                audio_transform=audio_T)
+
+
+    valid_dataset= ValidDataset(path_to_valid_dataset=path_to_valid_dataset, 
+                                path_to_valid_list=path_to_valid_list, 
+                                data_type=data_type,
+                                dataset_type=dataset_type,
+                                image_transform=image_T, 
+                                audio_transform=audio_T)
 
     # sampler
     train_sampler = ProtoSampler(train_dataset.labels,

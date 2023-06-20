@@ -102,7 +102,7 @@ class Audio_Transforms:
                 T.Resize(size=256, interpolation=T.InterpolationMode.BICUBIC, max_size=None, antialias=None),
                 T.CenterCrop(size=(224, 224)),
                 T.ToTensor(),
-                # T.Normalize(mean=torch.tensor([0.4850]), std=torch.tensor([0.2290]))
+                T.Normalize(mean=torch.tensor([0.485, 0.456, 0.406]), std=torch.tensor([0.229, 0.224, 0.225]))
             ])
 
     def pytorch_init(self):
@@ -165,7 +165,7 @@ class Audio_Transforms:
     def timm_transform(self, audio):
         input = self.to_MelSpectrogram(audio)
         if self.model_name == "vit_base_patch16_224":
-            # input = input.repeat(3, 1, 1)
+            input = input.repeat(3, 1, 1)
             input = self.vit_transform(input)
         return input
 
