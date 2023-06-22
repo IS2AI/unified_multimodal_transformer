@@ -66,6 +66,7 @@ if __name__== "__main__":
 
     # loss
     dist_type = namespace.dist_type
+    loss_type = namespace.loss_type
 
     # optimizer
     weight_decay = namespace.weight_decay
@@ -93,6 +94,7 @@ if __name__== "__main__":
     input_parameters["n_query"] = n_query
     input_parameters["valid_batch_size"] = batch_size
     input_parameters["dist_type"] = dist_type
+    input_parameters["loss_type"] = loss_type
     input_parameters["library"] = library
 
     input_parameters["model_name"] = model_name
@@ -170,16 +172,6 @@ if __name__== "__main__":
 
     device = torch.device(f"cuda:{str(n_gpu)}" if torch.cuda.is_available() else "cpu")
 
-    model = Model(library=library, 
-            pretrained_weights=pretrained_weights, 
-            fine_tune=fine_tune, 
-            embedding_size=embedding_size,
-            model_name = model_name,
-            pool=pool,
-            data_type=data_type)
-
-    model = model.to(device)
-
     audio_T = None
     image_T = None
 
@@ -216,21 +208,45 @@ if __name__== "__main__":
                                 dataset_type=dataset_type,
                                 image_transform=image_T, 
                                 audio_transform=audio_T)
+    
+    if loss_type == 'classification':
+        train_dataloader = DataLoader(dataset=train_dataset,
+                        shuffle=True,
+                        batch_size=batch_size,
+                        num_workers=4)
+        train_sampler = None
 
-    # sampler
-    train_sampler = ProtoSampler(train_dataset.labels,
-                                n_batch,
-                                n_ways, # n_way
-                                n_support, # n_shots
-                                n_query)
-
-    # dataloader
-    train_dataloader = DataLoader(dataset=train_dataset, 
-                            batch_sampler=train_sampler)
+    elif loss_type == 'metric_learning':
+        train_sampler = ProtoSampler(train_dataset.labels,
+                                    n_batch,
+                                    n_ways, # n_way
+                                    n_support, # n_shots
+                                    n_query)
+        train_dataloader = DataLoader(dataset=train_dataset, 
+                                batch_sampler=train_sampler)
 
     valid_dataloader = DataLoader(dataset=valid_dataset,
-                            batch_size=batch_size,
-                            shuffle=True)
+                            batch_size=batch_size)
+
+    pretrained_model = Model(library=library, 
+            pretrained_weights=pretrained_weights, 
+            fine_tune=fine_tune, 
+            embedding_size=embedding_size,
+            model_name = model_name,
+            pool=pool,
+            data_type=data_type)
+
+
+    if loss_type == 'classification':
+        n_classes = len(np.unique(train_dataset.labels))
+        classification_layer = torch.nn.Linear(embedding_size, n_classes)
+        model = torch.nn.Sequential()
+        model.add_module('pretrained_model', pretrained_model)
+        model.add_module('classification_layer', classification_layer)
+    elif loss_type == 'metric_learning':
+        model = pretrained_model
+
+    model = model.to(device)
 
     # loss
     criterion = PrototypicalLoss(dist_type=dist_type)
@@ -253,6 +269,7 @@ if __name__== "__main__":
                     save_dir=save_dir,
                     exp_name=exp_name,
                     data_type=data_type,
+                    loss_type=loss_type,
                     wandb=wandb)
 
     if wandb_use:

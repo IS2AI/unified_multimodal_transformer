@@ -7,6 +7,7 @@ from transformers import AutoModelForAudioClassification
 from transformers import WavLMForXVector
 
 
+
 class Model(nn.Module):
     """
         Parameters

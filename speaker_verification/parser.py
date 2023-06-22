@@ -55,6 +55,9 @@ def createParser():
     parser.add_argument ('-dist_type', '--dist_type', default='squared_euclidean',
                         help='Distance type to calculate in Prototypical Loss function \
                               (default: "squared_euclidean"). Can be either "squared_euclidean" or "cosine_similarity"')
+    parser.add_argument ('-loss_type', '--loss_type', default='classification',
+                        choices=("classification","metric_learning"),
+                        help='Loss type can be either classification loss or metric learning loss.')
 
     # model
     parser.add_argument ('-library', '--library', default="pytorch", 

@@ -20,6 +20,7 @@ def train_model(model,
                 save_dir,
                 exp_name,
                 data_type,
+                loss_type,
                 wandb=None):
 
     logs = {}
@@ -37,17 +38,33 @@ def train_model(model,
     for epoch in trange(num_epochs, desc="Epoch"):
         start = timer()
         start_train = timer()
-        
-        model, train_loss, train_acc = train_singe_epoch(model, 
-                                  train_dataloader,
-                                  epoch, 
-                                  train_sampler.n_ways, 
-                                  train_sampler.n_shots, 
-                                  train_sampler.n_query,
-                                  criterion,
-                                  optimizer,
-                                  device,
-                                  data_type)
+
+
+        if loss_type == "metric_learning":
+            model, train_loss, train_acc = train_singe_epoch(model=model, 
+                                    train_dataloader=train_dataloader,
+                                    epoch=epoch, 
+                                    n_ways=train_sampler.n_ways, 
+                                    n_shots=train_sampler.n_shots, 
+                                    n_query=train_sampler.n_query,
+                                    criterion=criterion,
+                                    optimizer=optimizer,
+                                    device=device,
+                                    data_type=data_type,
+                                    loss_type=loss_type)
+
+        elif loss_type == "classification":
+            model, train_loss, train_acc = train_singe_epoch(model=model, 
+                                    train_dataloader=train_dataloader,
+                                    epoch=epoch, 
+                                    n_ways=None, 
+                                    n_shots=None, 
+                                    n_query=None,
+                                    criterion=criterion,
+                                    optimizer=optimizer,
+                                    device=device,
+                                    data_type=data_type,
+                                    loss_type=loss_type)
         
         end_train = timer()
         logs['train_time_min'].append((end_train - start_train)/60)
@@ -58,7 +75,8 @@ def train_model(model,
                                   valid_dataloader,
                                   epoch,
                                   device,
-                                  data_type)
+                                  data_type,
+                                  loss_type)
 
         end_val = timer()
         logs['eval_time_min'].append((end_val - start_val)/60)
@@ -108,7 +126,8 @@ def train_singe_epoch(model,
                       criterion,
                       optimizer,
                       device,
-                      data_type):
+                      data_type,
+                      loss_type):
 
     model.train()
     pbar = tqdm(train_dataloader, desc=f'Train (epoch = {epoch})', leave=False)  
@@ -129,12 +148,17 @@ def train_singe_epoch(model,
             
         data = model(data)
 
-        label = torch.arange(n_ways).repeat(n_query)
-        label = label.to(device)
+        if loss_type == "metric_learning":
+            label = torch.arange(n_ways).repeat(n_query)
+            label = label.to(device)
+            loss, logits = criterion(data, label, n_ways, n_shots, n_query)
+            pred = F.softmax(logits,dim=1).argmax(dim=1)
 
-        loss, logits = criterion(data, label, n_ways, n_shots, n_query)
+        elif loss_type == "classification":
+            label = label.to(device)
+            loss = F.cross_entropy(data, label)
+            pred = torch.argmax(F.softmax(data,dim=1), dim=1)
 
-        pred = F.softmax(logits,dim=1).argmax(dim=1)
         accuracy = (pred == label).sum()/len(label) * 100
         
         total_loss += loss.item()
@@ -157,7 +181,8 @@ def evaluate_single_epoch(model,
                         val_dataloader,
                         epoch, 
                         device,
-                        data_type):
+                        data_type,
+                        loss_type):
     model.eval()
     total_eer = 0
     total_accuracy = 0
@@ -177,8 +202,13 @@ def evaluate_single_epoch(model,
             data_id2 = data_id2.to(device)
 
         with torch.no_grad():
-            id1_out = model(data_id1)
-            id2_out = model(data_id2)
+
+            if loss_type == "metric_learning":
+                id1_out = model(data_id1)
+                id2_out = model(data_id2)
+            elif loss_type == "classification":
+                id1_out = model.pretrained_model(data_id1)
+                id2_out = model.pretrained_model(data_id2)
 
             cos_sim = F.cosine_similarity(id1_out, id2_out, dim=1)
             eer, scores = EER_(cos_sim, labels)
@@ -187,44 +217,6 @@ def evaluate_single_epoch(model,
             total_eer += eer
             total_accuracy += accuracy
     
-    avg_eer = total_eer / len(val_dataloader)
-    print("\nAverage val eer: {}".format(avg_eer))
-
-    avg_accuracy = total_accuracy / len(val_dataloader)
-    print("\nAverage val accuracy: {}".format(avg_accuracy))
-
-    return model, avg_eer, avg_accuracy
-    
-
-# when we do not use lists and create pairs with ValidSampler
-def evaluate_single_epoch_1(model,
-                          val_dataloader,
-                          epoch,
-                          device):
-    model.eval()
-    total_eer = 0
-    total_accuracy = 0
-
-    pbar = tqdm(val_dataloader, desc=f'Eval (epoch = {epoch})')
-    for batch in pbar:
-        _, data_rgb, _, _ = batch
-        data = data_rgb.to(device)
-
-        with torch.no_grad():
-            data = model(data)
-            
-            pairs_size = (data.shape[0]-1) // 2
-            main_id = data[0].repeat(pairs_size*2).reshape(pairs_size*2, data.shape[1])
-            compare_id = data[1:]
-            labels = torch.cat((torch.ones(pairs_size), torch.zeros(pairs_size)))
-
-            cos_sim = F.cosine_similarity(main_id, compare_id)
-            eer, scores = EER_(cos_sim, labels)
-            accuracy = accuracy_(labels, scores)
-            
-            total_eer += eer
-            total_accuracy += accuracy
-
     avg_eer = total_eer / len(val_dataloader)
     print("\nAverage val eer: {}".format(avg_eer))
 
