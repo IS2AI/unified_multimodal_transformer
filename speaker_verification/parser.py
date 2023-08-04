@@ -6,7 +6,9 @@ def createParser():
     # device
     parser.add_argument ('-n_gpu', '--n_gpu', type=int, default=0,
                         help='Number of GPU core.')
-
+    # seed
+    parser.add_argument ('-seed', '--seed', type=int, default=42,
+                        help='Random seed')
     # train dataset
     parser.add_argument ('-afile', '--annotation_file', default="annotations_file_short_SF.csv",
                         help='Path to the annotation_file.')
@@ -50,7 +52,9 @@ def createParser():
     # optimizer
     parser.add_argument ('-weight_decay', '--weight_decay', type=float, default=0, 
                         help='weight decay regularization parameter.')
-    
+    parser.add_argument ('-lr', '--lr', type=float, default=1e-3, 
+                        help='learning rate parameter.')
+   
     # loss
     parser.add_argument ('-dist_type', '--dist_type', default='squared_euclidean',
                         help='Distance type to calculate in Prototypical Loss function \
@@ -76,6 +80,13 @@ def createParser():
                             If "0", it means feature extraction mode, i.e. train last classifier layer. \
                             For more details of the description of each mode, \
                             read https://pytorch.org/tutorials/beginner/finetuning_torchvision_models_tutorial.html')
+    
+    parser.add_argument ('-transfer', '--transfer', type=int, choices=(0,1), default=0,
+                        help='Allows to continue training of a pretrained model')
+    
+    parser.add_argument ('-transfer_exp_path', '--transfer_exp_path', default="exp1",
+                        help='The path to the experiment from where to load the model and transfer knowledge.')
+    
     parser.add_argument ('-emb_size', '--embedding_size', type=int, default=128,
                         help='Size of the embedding of the last layer.')
     parser.add_argument ('-pool', '--pool', default="default", 

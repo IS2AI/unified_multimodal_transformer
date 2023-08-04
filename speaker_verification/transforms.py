@@ -8,11 +8,12 @@ from transformers import Wav2Vec2FeatureExtractor
 class Image_Transforms:
     def __init__(self, 
                  library,
-                 model_name):
+                 model_name, modality):
 
         self.library = library
         self.model_name = model_name
-
+        self.modality = modality
+        
         if self.library == "huggingface":
             pass
         elif self.library == "timm":
@@ -23,12 +24,20 @@ class Image_Transforms:
     def timm_init(self):
         if self.model_name == "vit_base_patch16_224":
             # n_channels = 3
+            # mean and std computed for SF dataset only
+            if self.modality == "rgb":
+                mean_val = [0.35843268, 0.27319421, 0.23963803]
+                std_val = [0.15948673, 0.13425587, 0.1222331]
+                
+            elif self.modality == "thr":
+                mean_val = [0.94060585, 0.74481036, 0.29649508]
+                std_val = [0.15892989, 0.27409379, 0.26099585]
+            
             self.transform_image=T.Compose([
                 T.ToPILImage(),
-                T.Resize(size=256, interpolation=T.InterpolationMode.BICUBIC, max_size=None, antialias=None),
-                T.CenterCrop(size=(224, 224)),
-                T.ToTensor(),
-                T.Normalize(mean=torch.tensor([0.4850]), std=torch.tensor([0.2290]))
+                T.Resize(size=(224,224)),
+                T.ToTensor(), 
+                T.Normalize(mean=torch.tensor(mean_val), std=torch.tensor(std_val))  
             ])
         else:
             self.transform_image = T.Compose([
@@ -46,9 +55,10 @@ class Image_Transforms:
 
     # MAIN TRANSFORM FUNCTION
     def transform(self, image):
-        return self.transform_image(image)
+            return self.transform_image(image)
 
 
+    
 class Audio_Transforms:
     def __init__(self, 
                 sample_rate,
@@ -98,11 +108,11 @@ class Audio_Transforms:
         if self.model_name == "vit_base_patch16_224":
             # n_channels = 1
             self.vit_transform=T.Compose([
-                T.ToPILImage(),
-                T.Resize(size=256, interpolation=T.InterpolationMode.BICUBIC, max_size=None, antialias=None),
-                T.CenterCrop(size=(224, 224)),
-                T.ToTensor(),
-                T.Normalize(mean=torch.tensor([0.485, 0.456, 0.406]), std=torch.tensor([0.229, 0.224, 0.225]))
+                T.Resize(size=(224,224))
+                #T.ToPILImage(),
+                #T.Resize(size=(224,224), interpolation=T.InterpolationMode.BICUBIC, max_size=None, antialias=None),
+                #T.ToTensor(),
+                #T.Normalize(mean=torch.tensor([0.485, 0.456, 0.406]), std=torch.tensor([0.229, 0.224, 0.225]))
             ])
 
     def pytorch_init(self):

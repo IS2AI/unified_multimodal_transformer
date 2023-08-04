@@ -26,8 +26,9 @@ if __name__== "__main__":
 
     # device
     n_gpu = namespace.n_gpu
-    seed_number = 42
-
+    seed_number = namespace.seed
+    print("SEED {}".format(seed_number))
+    
     # dataset
     annotations_file = namespace.annotation_file
     path_to_train_dataset = namespace.path_to_train_dataset
@@ -39,8 +40,10 @@ if __name__== "__main__":
     library = namespace.library
     model_name = namespace.model_name
     fine_tune = namespace.fine_tune
+    transfer = namespace.transfer
     pool=namespace.pool
     exp_name = namespace.exp_name
+    transfer_exp_path = namespace.transfer_exp_path
     pretrained_weights = namespace.pretrained_weights
     embedding_size = namespace.embedding_size
 
@@ -70,7 +73,7 @@ if __name__== "__main__":
 
     # optimizer
     weight_decay = namespace.weight_decay
-
+    learning_rate = namespace.lr
     # train 
     num_epochs = namespace.num_epochs
     save_dir = namespace.save_dir
@@ -87,7 +90,6 @@ if __name__== "__main__":
     input_parameters["path_to_valid_dataset"] = path_to_valid_dataset
     input_parameters["path_to_valid_list"] = path_to_valid_list
     input_parameters["dataset_type"] = dataset_type
-
     input_parameters["n_batch"] = n_batch
     input_parameters["n_ways"] = n_ways
     input_parameters["n_support"] = n_support
@@ -99,11 +101,17 @@ if __name__== "__main__":
 
     input_parameters["model_name"] = model_name
     input_parameters["fine_tune"] = fine_tune
+    input_parameters["transfer"] = transfer
+    
+    
+  
     input_parameters["pool"] = pool
     input_parameters["exp_name"] = exp_name
     input_parameters["pretrained_weights"] = pretrained_weights
     input_parameters["embedding_size"] = embedding_size
-
+    input_parameters["batch_size"] = batch_size
+    input_parameters["wandb"] = wandb_use
+    
     # audio transform
     input_parameters["sample_rate"] = sample_rate
     input_parameters["sample_duration"] = sample_duration
@@ -119,7 +127,7 @@ if __name__== "__main__":
     input_parameters["save_dir"] = save_dir
     input_parameters["data_type"] = data_type
     input_parameters["weight_decay"] = weight_decay
-
+    input_parameters["lr"] = learning_rate
 
     # Wandb
     if wandb_use:
@@ -173,8 +181,10 @@ if __name__== "__main__":
     device = torch.device(f"cuda:{str(n_gpu)}" if torch.cuda.is_available() else "cpu")
 
     audio_T = None
-    image_T = None
-
+    rgb_T = None
+    thr_T = None
+    
+    # Transforms for each modality
     if 'wav' in data_type:
         audio_T = Audio_Transforms(sample_rate=sample_rate,
                                     sample_duration=sample_duration,
@@ -187,10 +197,15 @@ if __name__== "__main__":
                                     library=library)
         audio_T = audio_T.transform
 
-    if 'rgb' in data_type or 'thr' in data_type:
-        image_T = Image_Transforms(model_name=model_name,
-                                library=library)
-        image_T = image_T.transform  
+    if 'rgb' in data_type:
+        rgb_T = Image_Transforms(model_name=model_name,
+                                library=library, modality="rgb")
+        rgb_T = rgb_T.transform  
+        
+    if 'thr' in data_type:
+        thr_T = Image_Transforms(model_name=model_name,
+                                library=library, modality="thr")
+        thr_T = thr_T.transform   
 
     # Dataset
     train_dataset = TrainDataset(annotations_file=annotations_file, 
@@ -198,7 +213,8 @@ if __name__== "__main__":
                                 data_type=data_type, 
                                 dataset_type=dataset_type,
                                 train_type = 'train',
-                                image_transform=image_T, 
+                                rgb_transform=rgb_T, 
+                                thr_transform=thr_T,
                                 audio_transform=audio_T)
 
 
@@ -206,7 +222,8 @@ if __name__== "__main__":
                                 path_to_valid_list=path_to_valid_list, 
                                 data_type=data_type,
                                 dataset_type=dataset_type,
-                                image_transform=image_T, 
+                                rgb_transform=rgb_T, 
+                                thr_transform=thr_T,
                                 audio_transform=audio_T)
     
     if loss_type == 'classification':
@@ -236,7 +253,7 @@ if __name__== "__main__":
             pool=pool,
             data_type=data_type)
 
-
+    
     if loss_type == 'classification':
         n_classes = len(np.unique(train_dataset.labels))
         classification_layer = torch.nn.Linear(embedding_size, n_classes)
@@ -245,7 +262,12 @@ if __name__== "__main__":
         model.add_module('classification_layer', classification_layer)
     elif loss_type == 'metric_learning':
         model = pretrained_model
-
+    
+    if transfer:
+        PATH=f'{transfer_exp_path}_best_eer.pth'
+        print("Loading model saved as {}".format(PATH))
+        model.load_state_dict(torch.load(PATH))
+        
     model = model.to(device)
 
     # loss
@@ -253,7 +275,7 @@ if __name__== "__main__":
     criterion = criterion.to(device)
 
     # optimizer + scheduler
-    optimizer = torch.optim.AdamW(model.parameters(), lr = 1e-3, weight_decay = weight_decay)
+    optimizer = torch.optim.AdamW(model.parameters(), lr = learning_rate, weight_decay = weight_decay)
     scheduler = torch.optim.lr_scheduler.StepLR(optimizer, 10, gamma=0.95)
 
     # train

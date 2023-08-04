@@ -18,7 +18,8 @@ class TrainDataset(Dataset):
                        data_type, 
                        dataset_type, # VX2 or SF
                        train_type,
-                       image_transform=None, 
+                       rgb_transform=None,
+                       thr_transform=None,
                        audio_transform=None):
 
         """ 
@@ -28,7 +29,8 @@ class TrainDataset(Dataset):
             dataset_type: can be either "SF", "VX2".
             train_type: "train"
             data_type: list of data types, ex: ['wav', 'rgb', 'thr']
-            image_transform: image transform
+            rgb_transform: image transform using the mean and std of rgb images
+            thr_transform: image transform using the mean and std of thr images
             audio_transform: audio transform
         """
 
@@ -52,7 +54,9 @@ class TrainDataset(Dataset):
         self.encoder.fit(np.unique(self.labels))
         self.labels = self.encoder.transform(self.labels)
 
-        self.image_transform = image_transform
+        self.rgb_transform = rgb_transform
+        self.thr_transform = thr_transform
+
         self.audio_transform = audio_transform
 
     def __len__(self):
@@ -80,14 +84,14 @@ class TrainDataset(Dataset):
         if "rgb" in self.data_type:
             if path2rgb:
                 data["rgb"] = io.imread(path2rgb)
-            if self.image_transform:
-                data["rgb"] = self.image_transform(data["rgb"])
+            if self.rgb_transform:
+                data["rgb"] = self.rgb_transform(data["rgb"])
             
         if "thr" in self.data_type:
             if path2thr:
                 data["thr"] = io.imread(path2thr)
-            if self.image_transform:
-                data["thr"] = self.image_transform(data["thr"])
+            if self.thr_transform:
+                data["thr"] = self.thr_transform(data["thr"])
 
         data = dict(sorted(data.items()))
         sample = (*list(data.values()), label)
@@ -146,7 +150,8 @@ class ValidDataset(Dataset):
                        path_to_valid_list, 
                        data_type,
                        dataset_type,
-                       image_transform=None, 
+                       rgb_transform=None, 
+                       thr_transform=None, 
                        audio_transform=None
                 ):
 
@@ -160,7 +165,8 @@ class ValidDataset(Dataset):
         with open(self.path_to_valid_list) as f:
             self.pairs_list = f.read().splitlines()
         
-        self.image_transform = image_transform
+        self.rgb_transform = rgb_transform
+        self.thr_transform = thr_transform
         self.audio_transform = audio_transform
 
     def __len__(self):
@@ -199,13 +205,13 @@ class ValidDataset(Dataset):
 
         if "rgb" in self.data_type:
             data["rgb"] = io.imread(path2rgb)
-            if self.image_transform:
-                data["rgb"] = self.image_transform(data["rgb"])
+            if self.rgb_transform:
+                data["rgb"] = self.rgb_transform(data["rgb"])
             
         if "thr" in self.data_type:
             data["thr"] = io.imread(path2thr)
-            if self.image_transform:
-                data["thr"] = self.image_transform(data["thr"])
+            if self.thr_transform:
+                data["thr"] = self.thr_transform(data["thr"])
 
         data = dict(sorted(data.items()))
         sample = (*list(data.values()), label)
@@ -251,7 +257,8 @@ class SpeakingFacesDataset(Dataset):
                        dataset_dir, 
                        train_type, 
                        data_type, # ['wav','rgb','thr']
-                       image_transform=None, 
+                       rgb_transform=None,
+                       thr_transform=None, 
                        audio_transform=None
                 ):
 
@@ -265,7 +272,8 @@ class SpeakingFacesDataset(Dataset):
         self.df_wav = self.df_all[self.df_all['data_type'] == 'wav']
         self.labels = self.df_wav["person_id"].values
 
-        self.image_transform = image_transform
+        self.rgb_transform = rgb_transform
+        self.thr_transform = thr_transform
         self.audio_transform = audio_transform
 
 
@@ -292,13 +300,13 @@ class SpeakingFacesDataset(Dataset):
 
         if "rgb" in self.data_type:
             data["rgb"] = io.imread(path2rgb)
-            if self.image_transform:
-                data["rgb"] = self.image_transform(data["rgb"])
+            if self.rgb_transform:
+                data["rgb"] = self.rgb_transform(data["rgb"])
             
         if "thr" in self.data_type:
             data["thr"] = io.imread(path2thr)
-            if self.image_transform:
-                data["thr"] = self.image_transform(data["thr"])
+            if self.thr_transform:
+                data["thr"] = self.thr_transform(data["thr"])
 
         data = dict(sorted(data.items()))
         sample = (*list(data.values()), label)

@@ -3,6 +3,7 @@ from tqdm import trange
 import gc
 import torch
 import torch.nn.functional as F
+import random
 
 from speaker_verification.metrics import EER_
 from speaker_verification.metrics import accuracy_
@@ -117,6 +118,111 @@ def train_model(model,
 
     return model
 
+def train_unimodal(data, label, device, model, criterion, loss_type, n_ways, n_shots, n_query):
+    data = data.to(device)
+    data = model(data)
+
+    if loss_type == "metric_learning":
+        label = torch.arange(n_ways).repeat(n_query)
+        label = label.to(device)
+        loss, logits = criterion(data, label, n_ways, n_shots, n_query)
+        pred = F.softmax(logits,dim=1).argmax(dim=1)
+
+    elif loss_type == "classification":
+        label = label.to(device)
+        loss = F.cross_entropy(data, label)
+        pred = torch.argmax(F.softmax(data,dim=1), dim=1)
+
+    accuracy = (pred == label).sum()/len(label) * 100
+    return loss, accuracy
+
+def train_bimodal(data1, data2, label, device, model, criterion, loss_type, n_ways, n_shots, n_query):
+    data1 = data1.to(device)
+    data1 = model(data1)           
+
+    data2 = data2.to(device)
+    data2 = model(data2)
+    data12 = torch.mean(torch.stack([data1, data2]), dim=0)
+
+    if loss_type == "metric_learning":
+        label = torch.arange(n_ways).repeat(n_query)
+        label = label.to(device)
+
+        loss12, logits12 = criterion(data12, label, n_ways, n_shots, n_query)
+        loss1, logits1 = criterion(data1, label, n_ways, n_shots, n_query)
+        loss2, logits2 = criterion(data2, label, n_ways, n_shots, n_query)
+
+        loss = loss1 + loss2 + loss12
+
+        pred1 = F.softmax(logits1,dim=1).argmax(dim=1)
+        pred2 = F.softmax(logits2,dim=1).argmax(dim=1)
+        pred12 = F.softmax(logits12,dim=1).argmax(dim=1)
+
+        accuracy1 = (pred1 == label).sum()/len(label) * 100
+        accuracy2 = (pred2 == label).sum()/len(label) * 100
+        accuracy12 = (pred12 == label).sum()/len(label) * 100
+
+        accuracy = torch.mean(torch.stack([accuracy1, accuracy2, accuracy12]))
+    
+    return loss, accuracy
+
+def train_trimodal(data1, data2, data3, label, device, model, criterion, loss_type, n_ways, n_shots, n_query):
+    data1 = data1.to(device)
+    data1 = model(data1)           
+
+    data2 = data2.to(device)
+    data2 = model(data2)
+
+    data3 = data3.to(device)
+    data3 = model(data3)
+
+    data12 = torch.mean(torch.stack([data1, data2]), dim=0)
+    data23 = torch.mean(torch.stack([data2, data3]), dim=0)
+    data13 = torch.mean(torch.stack([data1, data3]), dim=0)
+    data123 = torch.mean(torch.stack([data1, data2, data3]), dim=0)
+
+    if loss_type == "metric_learning":
+        label = torch.arange(n_ways).repeat(n_query)
+        label = label.to(device)
+
+        loss1, logits1 = criterion(data1, label, n_ways, n_shots, n_query)
+        loss2, logits2 = criterion(data2, label, n_ways, n_shots, n_query)
+        loss3, logits3 = criterion(data3, label, n_ways, n_shots, n_query)
+
+        loss12, logits12 = criterion(data12, label, n_ways, n_shots, n_query)          
+        loss23, logits23 = criterion(data23, label, n_ways, n_shots, n_query)
+        loss13, logits13 = criterion(data13, label, n_ways, n_shots, n_query)
+
+        loss123, logits123 = criterion(data123, label, n_ways, n_shots, n_query)
+
+        loss = loss1 + loss2 + loss3 +  loss12 + loss23 + loss13 + loss123
+
+        pred1 = F.softmax(logits1,dim=1).argmax(dim=1)
+        pred2 = F.softmax(logits2,dim=1).argmax(dim=1)
+        pred3 = F.softmax(logits3,dim=1).argmax(dim=1)
+
+        pred12 = F.softmax(logits12,dim=1).argmax(dim=1)
+        pred23 = F.softmax(logits23,dim=1).argmax(dim=1)
+        pred13 = F.softmax(logits13,dim=1).argmax(dim=1)
+
+        pred123 = F.softmax(logits123,dim=1).argmax(dim=1)
+
+        accuracy1 = (pred1 == label).sum()/len(label) * 100
+        accuracy2 = (pred2 == label).sum()/len(label) * 100
+        accuracy3 = (pred3 == label).sum()/len(label) * 100
+
+        accuracy12 = (pred12 == label).sum()/len(label) * 100
+        accuracy23 = (pred23 == label).sum()/len(label) * 100
+        accuracy13 = (pred13 == label).sum()/len(label) * 100
+
+        accuracy123 = (pred123 == label).sum()/len(label) * 100
+
+        accuracy = torch.mean(torch.stack([accuracy1, accuracy2, accuracy3, 
+                                           accuracy12, accuracy23, accuracy13,
+                                           accuracy123]))
+
+    return loss, accuracy
+
 def train_singe_epoch(model,
                       train_dataloader, 
                       epoch, 
@@ -140,27 +246,71 @@ def train_singe_epoch(model,
 
         if len(data_type) == 1:
             data, label = batch
-            data = data.to(device)
-        elif len(data_type) == 2: # two modalities
-            pass
-        elif len(data_type) == 3: # three modalities
-            pass
+            loss, accuracy = train_unimodal(data, label, device, model, criterion,  
+                                            loss_type, n_ways, n_shots, n_query)
             
-        data = model(data)
+        elif len(data_type) == 2: # two modalities
+            data1, data2, label = batch
+            
+            choices = torch.tensor(random.choices([0,1,2], k=data1.shape[0]))
+            
+            mask1 = choices == 0
+            mask2 = choices == 1
+            data1[mask1] = 0
+            data2[mask2] = 0
+            
+            loss, accuracy = train_bimodal(data1, data2, label, device, model, criterion,
+                          loss_type, n_ways, n_shots, n_query)
+            
+            #choice = random.choice([0,1,2])
+                
+            #if choice == 0:
+            #    data, _ , label = batch
+            #    loss, accuracy = train_unimodal(data, label, device, model, criterion,  
+            #                                   loss_type, n_ways, n_shots, n_query)
+            #elif choice == 1:
+            #    _, data , label = batch
+            #    loss, accuracy = train_unimodal(data, label, device, model, criterion,  
+            #                                    loss_type, n_ways, n_shots, n_query) 
+            #else:
+            #    data1, data2, label = batch
+            #    loss, accuracy = train_bimodal(data1, data2, label, device, model, criterion, 
+            #                                   loss_type, n_ways, n_shots, n_query)
 
-        if loss_type == "metric_learning":
-            label = torch.arange(n_ways).repeat(n_query)
-            label = label.to(device)
-            loss, logits = criterion(data, label, n_ways, n_shots, n_query)
-            pred = F.softmax(logits,dim=1).argmax(dim=1)
 
-        elif loss_type == "classification":
-            label = label.to(device)
-            loss = F.cross_entropy(data, label)
-            pred = torch.argmax(F.softmax(data,dim=1), dim=1)
-
-        accuracy = (pred == label).sum()/len(label) * 100
-        
+                  
+        elif len(data_type) == 3: # three modalities
+            choice = random.choice([0,1,2,3,4,5,6])
+            
+            if choice == 0:
+                data, _, _, label = batch
+                loss, accuracy = train_unimodal(data, label, device, model, criterion,  
+                                                loss_type, n_ways, n_shots, n_query)
+            elif choice == 1:
+                _, data, _, label = batch
+                loss, accuracy = train_unimodal(data, label, device, model, criterion,  
+                                                loss_type, n_ways, n_shots, n_query)
+            elif choice == 2:
+                _, _, data, label = batch
+                loss, accuracy = train_unimodal(data, label, device, model, criterion,  
+                                                loss_type, n_ways, n_shots, n_query)
+            elif choice == 3:
+                data1, data2, _, label = batch
+                loss, accuracy = train_bimodal(data1, data2, label, device, model, criterion,  
+                                                loss_type, n_ways, n_shots, n_query)
+            elif choice == 4:
+                _, data2, data3, label = batch
+                loss, accuracy = train_bimodal(data2, data3, label, device, model, criterion,  
+                                                loss_type, n_ways, n_shots, n_query)
+            elif choice == 5:
+                data1, _, data3, label = batch
+                loss, accuracy = train_bimodal(data1, data3, label, device, model, criterion,  
+                                                loss_type, n_ways, n_shots, n_query)
+            elif choice == 6:
+                data1, data2, data3, label = batch
+                loss, accuracy = train_trimodal(data1, data2, data3, label, device, model, criterion,  
+                                                loss_type, n_ways, n_shots, n_query)
+                
         total_loss += loss.item()
         total_acc += accuracy.item()
         
@@ -200,19 +350,80 @@ def evaluate_single_epoch(model,
 
             data_id1 = data_id1.to(device)
             data_id2 = data_id2.to(device)
+       
+            with torch.no_grad():
 
-        with torch.no_grad():
+                if loss_type == "metric_learning":
+                    id1_out = model(data_id1)
+                    id2_out = model(data_id2)
+                elif loss_type == "classification":
+                    id1_out = model.pretrained_model(data_id1)
+                    id2_out = model.pretrained_model(data_id2)
 
-            if loss_type == "metric_learning":
-                id1_out = model(data_id1)
-                id2_out = model(data_id2)
-            elif loss_type == "classification":
-                id1_out = model.pretrained_model(data_id1)
-                id2_out = model.pretrained_model(data_id2)
+                cos_sim = F.cosine_similarity(id1_out, id2_out, dim=1)
+                eer, scores = EER_(cos_sim, labels)
+                accuracy = accuracy_(labels, scores)
+                
+        elif len(data_type) == 2:
+            data1_id1,data2_id1, _ = id1
+            data1_id2,data2_id2, _ = id2
 
-            cos_sim = F.cosine_similarity(id1_out, id2_out, dim=1)
-            eer, scores = EER_(cos_sim, labels)
-            accuracy = accuracy_(labels, scores)
+            data1_id1 = data1_id1.to(device)
+            data2_id1 = data2_id1.to(device)
+       
+            data1_id2 = data1_id2.to(device)
+            data2_id2 = data2_id2.to(device)
+       
+            with torch.no_grad():
+
+                if loss_type == "metric_learning":
+                    data1_id1 = model(data1_id1)
+                    data2_id1 = model(data2_id1)
+                    
+                    data1_id2 = model(data1_id2)
+                    data2_id2 = model(data2_id2)
+                    
+                    id1_out = torch.mean(torch.stack([data1_id1, data2_id1]), dim=0)
+                    id2_out = torch.mean(torch.stack([data1_id2, data2_id2]), dim=0)
+                    
+                cos_sim = F.cosine_similarity(id1_out, id2_out, dim=1)
+                
+                eer, scores = EER_(cos_sim, labels)
+                accuracy = accuracy_(labels, scores)
+
+            total_eer += eer
+            total_accuracy += accuracy
+        
+        elif len(data_type) == 3:
+            data1_id1,data2_id1,data3_id1, _ = id1
+            data1_id2,data2_id2,data3_id2, _ = id2
+
+            data1_id1 = data1_id1.to(device)
+            data2_id1 = data2_id1.to(device)
+            data3_id1 = data3_id1.to(device)
+            
+            data1_id2 = data1_id2.to(device)
+            data2_id2 = data2_id2.to(device)
+            data3_id2 = data3_id2.to(device)
+            
+            with torch.no_grad():
+
+                if loss_type == "metric_learning":
+                    data1_id1 = model(data1_id1)
+                    data2_id1 = model(data2_id1)
+                    data3_id1 = model(data3_id1)
+                    
+                    data1_id2 = model(data1_id2)
+                    data2_id2 = model(data2_id2)
+                    data3_id2 = model(data3_id2)
+                    
+                    id1_out = torch.mean(torch.stack([data1_id1, data2_id1, data3_id1]), dim=0)
+                    id2_out = torch.mean(torch.stack([data1_id2, data2_id2, data3_id2]), dim=0)
+                    
+                cos_sim = F.cosine_similarity(id1_out, id2_out, dim=1)
+                
+                eer, scores = EER_(cos_sim, labels)
+                accuracy = accuracy_(labels, scores)
 
             total_eer += eer
             total_accuracy += accuracy

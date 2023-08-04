@@ -57,7 +57,10 @@ class Model(nn.Module):
             elif data_type[0] == "thr":
                 print("thr data type")
                 self.model = self.image_model()
-
+        elif len(data_type) > 1 :
+            print("{} data type".format(data_type))
+            self.model = self.multi_model()
+    
     def forward(self, x):
         if self.library == "huggingface":
             x = self.model(x).logits
@@ -65,6 +68,20 @@ class Model(nn.Module):
             x = self.model(x)
         return x
 
+    def multi_model(self):
+
+        if self.library == "huggingface":
+            print("HuggingFace model is used.")
+            pass
+        elif self.library == "pytorch":
+            print("pytorch model is used.")
+            model = self.pytorch_model(in_channels = 3)
+        elif self.library == "timm":
+            print("timm model is used.")
+            model = self.timm_model(in_channels = 3)
+
+        return model
+    
     def image_model(self):
 
         if self.library == "huggingface":
