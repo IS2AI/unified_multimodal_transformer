@@ -25,10 +25,10 @@ class PrototypicalLoss(nn.Module):
 
         # 2. Compute prototype from support examples for each class
         prototype = self.calculate_prototype(support)
-
+        
         # 3. Compute euclidean distances between query samples and prototypes
         dist = self.calculate_dist(query, prototype, dist_type=self.dist_type)
-
+        
         # 4. Calculate CrossEntopyLoss(-d(q,ck))
         logits = -dist
         loss = F.cross_entropy(logits, label)

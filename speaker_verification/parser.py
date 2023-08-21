@@ -54,7 +54,17 @@ def createParser():
                         help='weight decay regularization parameter.')
     parser.add_argument ('-lr', '--lr', type=float, default=1e-3, 
                         help='learning rate parameter.')
-   
+    parser.add_argument ('-scheduler', '--scheduler', default="StepLR", 
+                        choices=("StepLR","CosineAnnealingLR"),
+                        help='Choose scheduler.')
+                         
+    parser.add_argument ('-step_size', '--step_size', type=int, default=10, 
+                        help='step_size for StepLR scheduler ')
+    parser.add_argument ('-gamma', '--gamma', type=float, default=0.95, 
+                        help='gamma for StepLP scheduler ')
+    parser.add_argument ('-t_max', '--t_max', type=int, default=10, 
+                        help='t_max for CosineAnnealingLR scheduler ')
+    
     # loss
     parser.add_argument ('-dist_type', '--dist_type', default='squared_euclidean',
                         help='Distance type to calculate in Prototypical Loss function \

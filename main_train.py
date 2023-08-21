@@ -74,6 +74,11 @@ if __name__== "__main__":
     # optimizer
     weight_decay = namespace.weight_decay
     learning_rate = namespace.lr
+    scheduler_type = namespace.scheduler
+    step_size = namespace.step_size
+    gamma = namespace.gamma
+    t_max = namespace.t_max
+    
     # train 
     num_epochs = namespace.num_epochs
     save_dir = namespace.save_dir
@@ -271,13 +276,16 @@ if __name__== "__main__":
     model = model.to(device)
 
     # loss
-    criterion = PrototypicalLoss(dist_type=dist_type)
+    criterion = PrototypicalLoss(dist_type = dist_type)
     criterion = criterion.to(device)
 
     # optimizer + scheduler
     optimizer = torch.optim.AdamW(model.parameters(), lr = learning_rate, weight_decay = weight_decay)
-    scheduler = torch.optim.lr_scheduler.StepLR(optimizer, 10, gamma=0.95)
-
+    if scheduler_type == "StepLR":
+        scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size = step_size, gamma = gamma)
+    else:
+        scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max = t_max)
+        
     # train
     model = train_model(model=model,
                     train_dataloader=train_dataloader, 

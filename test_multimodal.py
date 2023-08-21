@@ -22,6 +22,7 @@ from tqdm import trange
 import pandas as pd 
 import torch.nn.functional as F
 import copy
+from itertools import product
 
 def results_to_csv(val_eer, val_acc, data_type, save_dir, exp_name, path_to_valid_list):
     
@@ -31,8 +32,8 @@ def results_to_csv(val_eer, val_acc, data_type, save_dir, exp_name, path_to_vali
     
     if (len(data_type) == 3):
         modalities.append("_".join([data_type[0], data_type[1]]))
-        modalities.append("_".join([data_type[1], data_type[2]]))
         modalities.append("_".join([data_type[0], data_type[2]]))
+        modalities.append("_".join([data_type[1], data_type[2]]))
         modalities.append("_".join(data_type))
     elif (len(data_type) == 2):
         modalities.append("_".join(data_type))
@@ -55,91 +56,69 @@ def get_eer_accuracy(id1, id2, labels):
     accuracy = accuracy_(labels, scores)
     return eer, accuracy
 
-def get_index_pairs(l1,l2):
-    pairs = []
-    for idx1 in range(len(l1)):
-        for idx2 in range(len(l1)):
-            pair = (idx1, idx2)
-            pairs.append(pair)
-    return pairs
+def get_index_pairs(l1, l2):
+    return list(product(range(len(l1)), range(len(l2))))
 
 
-def evaluate_bimodal_pair(model, id1, id2, labels, device):
-    data1_id1,data2_id1, _ = id1
-    data1_id2,data2_id2, _ = id2
+def preprocess_and_infer(data_list, model, device):
+    processed_data_list = [model(data) for data in data_list]
+    return processed_data_list
 
-    data1_id1 = data1_id1.to(device)
-    data2_id1 = data2_id1.to(device)
+def calculate_mean_combinations(data_list):
+    mean_combinations = []
+    for i in range(len(data_list)):
+        for j in range(i + 1, len(data_list)):
+            mean_combinations.append(torch.mean(torch.stack([data_list[i], data_list[j]]), dim=0))
+    return mean_combinations
 
-    data1_id2 = data1_id2.to(device)
-    data2_id2 = data2_id2.to(device)
-    
-    with torch.no_grad():
-        data1_id1 = model(data1_id1)
-        data2_id1 = model(data2_id1)
+def calculate_total_eer_accuracy(id1, id2, labels):
+    total_eer = np.zeros((len(id1), len(id2)))
+    total_accuracy = np.zeros((len(id1), len(id2)))
 
-        data1_id2 = model(data1_id2)
-        data2_id2 = model(data2_id2)
-
-        data12_id1 = torch.mean(torch.stack([data1_id1, data2_id1]), dim=0)
-        data12_id2 = torch.mean(torch.stack([data1_id2, data2_id2]), dim=0)
-        id1 = [data1_id1,data2_id1,data12_id1]
-        id2 = [data1_id2,data2_id2,data12_id2]
-
-        indices = get_index_pairs(id1, id2)
-        total_eer = np.zeros((len(id1), len(id2)))
-        total_accuracy = np.zeros((len(id1), len(id2)))
-
-        for i,j in indices:
-            eer, accuracy = get_eer_accuracy(id1[i], id2[j], labels)
-            total_eer[i,j] = eer
-            total_accuracy[i,j] = accuracy
+    for i, j in get_index_pairs(id1, id2):
+        eer, accuracy = get_eer_accuracy(id1[i], id2[j], labels)
+        total_eer[i, j] = eer
+        total_accuracy[i, j] = accuracy
 
     return total_eer, total_accuracy
 
 def evaluate_trimodal_pair(model, id1, id2, labels, device):
-    data1_id1,data2_id1, data3_id1, _ = id1
-    data1_id2,data2_id2, data3_id2, _ = id2
-
-    data1_id1 = data1_id1.to(device)
-    data2_id1 = data2_id1.to(device)
-    data3_id1 = data3_id1.to(device)
-
-    data1_id2 = data1_id2.to(device)
-    data2_id2 = data2_id2.to(device)
-    data3_id2 = data3_id2.to(device)
-
+    id1_data = [item.to(device) for item in id1[:-1]]
+    id2_data = [item.to(device) for item in id2[:-1]]
+    
     with torch.no_grad():
-        data1_id1 = model(data1_id1)
-        data2_id1 = model(data2_id1)
-        data3_id1 = model(data3_id1)
+        processed_id1_data = preprocess_and_infer(id1_data, model, device)
+        processed_id2_data = preprocess_and_infer(id2_data, model, device)
 
-        data1_id2 = model(data1_id2)
-        data2_id2 = model(data2_id2)
-        data3_id2 = model(data3_id2)
+        mean_combinations_id1 = calculate_mean_combinations(processed_id1_data)
+        mean_combinations_id2 = calculate_mean_combinations(processed_id2_data)
 
-        data123_id1 = torch.mean(torch.stack([data1_id1, data2_id1, data3_id1]), dim=0)
-        data123_id2 = torch.mean(torch.stack([data1_id2, data2_id2, data3_id2]), dim=0)
+        mean_all_id1 = [torch.mean(torch.stack(processed_id1_data), dim=0)]
+        mean_all_id2 = [torch.mean(torch.stack(processed_id2_data), dim=0)]
 
-        data12_id1 = torch.mean(torch.stack([data1_id1, data2_id1]), dim=0)
-        data23_id1 = torch.mean(torch.stack([data2_id1, data3_id1]), dim=0)
-        data13_id1 = torch.mean(torch.stack([data1_id1, data3_id1]), dim=0)
-        
-        data12_id2 = torch.mean(torch.stack([data1_id2, data2_id2]), dim=0)
-        data23_id2 = torch.mean(torch.stack([data2_id2, data3_id2]), dim=0)
-        data13_id2 = torch.mean(torch.stack([data1_id2, data3_id2]), dim=0)
-   
-        id1 = [data1_id1, data2_id1, data3_id1, data12_id1, data23_id1, data13_id1, data123_id1]
-        id2 = [data1_id2, data2_id2, data3_id2, data12_id2, data23_id2, data13_id2, data123_id2]
-        
-        indices = get_index_pairs(id1, id2)
-        total_eer = np.zeros((len(id1), len(id2)))
-        total_accuracy = np.zeros((len(id1), len(id2)))
+        id1_combined = processed_id1_data + mean_combinations_id1 + mean_all_id1
+        id2_combined = processed_id2_data + mean_combinations_id2 + mean_all_id2
 
-        for i,j in indices:
-            eer, accuracy = get_eer_accuracy(id1[i], id2[j], labels)
-            total_eer[i,j] = eer
-            total_accuracy[i,j] = accuracy
+        total_eer, total_accuracy = calculate_total_eer_accuracy(id1_combined, id2_combined, labels)
+    
+    return total_eer, total_accuracy
+
+
+def evaluate_bimodal_pair(model, id1, id2, labels, device):
+    id1_data = [item.to(device) for item in id1[:-1]]
+    id2_data = [item.to(device) for item in id2[:-1]]
+    
+    with torch.no_grad():
+        processed_id1_data = preprocess_and_infer(id1_data, model, device)
+        processed_id2_data = preprocess_and_infer(id2_data, model, device)
+
+        mean_all_id1 = [torch.mean(torch.stack(processed_id1_data), dim=0)]
+        mean_all_id2 = [torch.mean(torch.stack(processed_id2_data), dim=0)]
+
+        id1_combined = processed_id1_data + mean_all_id1
+        id2_combined = processed_id2_data + mean_all_id2
+
+        total_eer, total_accuracy = calculate_total_eer_accuracy(id1_combined, id2_combined, labels)
 
     return total_eer, total_accuracy
 
