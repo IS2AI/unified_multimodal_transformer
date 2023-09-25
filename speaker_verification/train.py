@@ -137,63 +137,6 @@ def train_unimodal(data, label, device, model, criterion, loss_type, n_ways, n_s
     return loss, accuracy
 
 
-def train_bimodal(data1, data2, label, device, model, criterion, loss_type, n_ways, n_shots, n_query):
-    data1 = data1.to(device)
-    data1 = model(data1)           
-
-    data2 = data2.to(device)
-    data2 = model(data2)
-    data12 = torch.mean(torch.stack([data1, data2]), dim=0)
-
-    if loss_type == "metric_learning":
-        label = torch.arange(n_ways).repeat(n_query)
-        label = label.to(device)
-
-        loss12, logits12 = criterion(data12, label, n_ways, n_shots, n_query)
-        loss1, logits1 = criterion(data1, label, n_ways, n_shots, n_query)
-        loss2, logits2 = criterion(data2, label, n_ways, n_shots, n_query)
-
-        loss = loss1 + loss2 + loss12
-
-        pred1 = F.softmax(logits1,dim=1).argmax(dim=1)
-        pred2 = F.softmax(logits2,dim=1).argmax(dim=1)
-        pred12 = F.softmax(logits12,dim=1).argmax(dim=1)
-
-        accuracy1 = (pred1 == label).sum()/len(label) * 100
-        accuracy2 = (pred2 == label).sum()/len(label) * 100
-        accuracy12 = (pred12 == label).sum()/len(label) * 100
-
-        accuracy = torch.mean(torch.stack([accuracy1, accuracy2, accuracy12]))
-    
-    return loss, accuracy
-
-def train_bimodal_miss(data1, data2, label, device, model, criterion, loss_type, n_ways, n_shots, n_query):
-    choices = torch.tensor(random.choices([0,1], k=data1.shape[0]))
-            
-    mask1 = choices == 0
-    mask2 = choices == 1
-   
-    data1 = data1.to(device)
-    data1 = model(data1)           
-
-    data2 = data2.to(device)
-    data2 = model(data2)
-    
-    data1[mask1] = 0
-    data2[mask2] = 0
-
-    data = torch.add(data1, data2)
-
-    if loss_type == "metric_learning":
-        label = torch.arange(n_ways).repeat(n_query)
-        label = label.to(device)
-
-        loss, logits = criterion(data, label, n_ways, n_shots, n_query)
-        pred = F.softmax(logits,dim=1).argmax(dim=1)
-        accuracy = (pred == label).sum()/len(label) * 100
-   
-    return loss, accuracy
-
 def train_unimodal_mix(data, device, criterion, n_ways, n_shots, n_query):
 
     label = torch.arange(n_ways).repeat(n_query)
@@ -203,65 +146,6 @@ def train_unimodal_mix(data, device, criterion, n_ways, n_shots, n_query):
     accuracy = (pred == label).sum()/len(label) * 100
 
     return loss, accuracy
-
-def train_bimodal_mix_old(data1, data2, label, device, model, criterion, loss_type, n_ways, n_shots, n_query):
-    # Note in loss: support, query = data[:p], data[p:] 
-    loss = 0
-    accuracy = 0
-    if loss_type == "metric_learning":
-        p = n_shots * n_ways
-        data1 = data1.to(device)
-        data1 = model(data1)           
-        data2 = data2.to(device)
-        data2 = model(data2)
-        data12 = torch.mean(torch.stack([data1, data2]), dim=0)
-        data = torch.zeros_like(data1)
-        # data is data1 (all queries of data_type1 are compared to samples of data_type1)
-        loss_1_1, accuracy_1_1 = train_unimodal_mix(data1, device, criterion, n_ways, n_shots, n_query)
-
-        # data is data2 (all queries of data_type2 are compared to samples of data_type2
-        loss_2_2, accuracy_2_2 = train_unimodal_mix(data2, device, criterion, n_ways, n_shots, n_query)
-
-        # data where queries are of type data_type1 and the rest are of data_type2        
-        data[p:] = data1[p:]
-        data[:p] = data2[:p]
-        loss_1_2, accuracy_1_2 = train_unimodal_mix(data, device, criterion, n_ways, n_shots, n_query)
-
-        # data where queries are of type data_type2 and the rest are of data_type1
-        data[p:] = data2[p:]
-        data[:p] = data1[:p]
-        loss_2_1, accuracy_2_1 = train_unimodal_mix(data, device, criterion, n_ways, n_shots, n_query)
-
-        # data where queries are of type data_type12 and the rest are of data_type1 
-        data[p:] = data12[p:]
-        data[:p] = data1[:p]
-        loss_12_1, accuracy_12_1 = train_unimodal_mix(data, device, criterion, n_ways, n_shots, n_query)
-
-        # data where queries are of type data_type12 and the rest are of data_type2
-        data[p:] = data12[p:]
-        data[:p] = data2[:p]
-        loss_12_2, accuracy_12_2 = train_unimodal_mix(data, device, criterion, n_ways, n_shots, n_query)
-
-        # data where queries are of type data_type1 and the rest are of data_type12 
-        data[p:] = data1[p:]
-        data[:p] = data12[:p]
-        loss_1_12, accuracy_1_12 = train_unimodal_mix(data, device, criterion, n_ways, n_shots, n_query)
-
-        # data where queries are of type data_type2 and the rest are of data_type12
-        data[p:] = data2[p:]
-        data[:p] = data12[:p]
-        loss_2_12, accuracy_2_12 = train_unimodal_mix(data, device, criterion, n_ways, n_shots, n_query)
-
-
-        # data is mean of data1 and data2 (all queries of data_type12 are compared to samples of data_type12
-        loss_12_12, accuracy_12_12 = train_unimodal_mix(data12, device, criterion, n_ways, n_shots, n_query)
-
-        # the sum of all 9 combinations that are later tested
-        loss = loss_1_1 + loss_2_2+ loss_1_2 + loss_2_1 + loss_12_1 + loss_1_12 + loss_12_2 + loss_2_12 +  loss_12_12
-        accuracy = torch.mean(torch.stack([accuracy_1_1, accuracy_2_2, accuracy_1_2, accuracy_2_1, 
-                                           accuracy_1_12, accuracy_12_1, accuracy_2_12, accuracy_12_2, accuracy_12_12]))
-    return loss, accuracy
-
 
 
 def train_bimodal_mix(data1, data2, label, device, model, criterion, loss_type, n_ways, n_shots, n_query):
@@ -329,62 +213,6 @@ def train_trimodal_mix(data1, data2, data3, label, device, model, criterion, los
     return total_loss, total_accuracy
 
 
-def train_trimodal(data1, data2, data3, label, device, model, criterion, loss_type, n_ways, n_shots, n_query):
-    data1 = data1.to(device)
-    data1 = model(data1)           
-
-    data2 = data2.to(device)
-    data2 = model(data2)
-
-    data3 = data3.to(device)
-    data3 = model(data3)
-
-    data12 = torch.mean(torch.stack([data1, data2]), dim=0)
-    data23 = torch.mean(torch.stack([data2, data3]), dim=0)
-    data13 = torch.mean(torch.stack([data1, data3]), dim=0)
-    data123 = torch.mean(torch.stack([data1, data2, data3]), dim=0)
-
-    if loss_type == "metric_learning":
-        label = torch.arange(n_ways).repeat(n_query)
-        label = label.to(device)
-
-        loss1, logits1 = criterion(data1, label, n_ways, n_shots, n_query)
-        loss2, logits2 = criterion(data2, label, n_ways, n_shots, n_query)
-        loss3, logits3 = criterion(data3, label, n_ways, n_shots, n_query)
-
-        loss12, logits12 = criterion(data12, label, n_ways, n_shots, n_query)          
-        loss23, logits23 = criterion(data23, label, n_ways, n_shots, n_query)
-        loss13, logits13 = criterion(data13, label, n_ways, n_shots, n_query)
-
-        loss123, logits123 = criterion(data123, label, n_ways, n_shots, n_query)
-
-        loss = loss1 + loss2 + loss3 +  loss12 + loss23 + loss13 + loss123
-
-        pred1 = F.softmax(logits1,dim=1).argmax(dim=1)
-        pred2 = F.softmax(logits2,dim=1).argmax(dim=1)
-        pred3 = F.softmax(logits3,dim=1).argmax(dim=1)
-
-        pred12 = F.softmax(logits12,dim=1).argmax(dim=1)
-        pred23 = F.softmax(logits23,dim=1).argmax(dim=1)
-        pred13 = F.softmax(logits13,dim=1).argmax(dim=1)
-
-        pred123 = F.softmax(logits123,dim=1).argmax(dim=1)
-
-        accuracy1 = (pred1 == label).sum()/len(label) * 100
-        accuracy2 = (pred2 == label).sum()/len(label) * 100
-        accuracy3 = (pred3 == label).sum()/len(label) * 100
-
-        accuracy12 = (pred12 == label).sum()/len(label) * 100
-        accuracy23 = (pred23 == label).sum()/len(label) * 100
-        accuracy13 = (pred13 == label).sum()/len(label) * 100
-
-        accuracy123 = (pred123 == label).sum()/len(label) * 100
-
-        accuracy = torch.mean(torch.stack([accuracy1, accuracy2, accuracy3, 
-                                           accuracy12, accuracy23, accuracy13,
-                                           accuracy123]))
-
-    return loss, accuracy
 
 def train_singe_epoch(model,
                       train_dataloader, 
@@ -474,6 +302,9 @@ def evaluate_single_epoch(model,
                 eer, scores = EER_(cos_sim, labels)
                 accuracy = accuracy_(labels, scores)
                 
+                total_eer += eer
+                total_accuracy += accuracy    
+        
         elif len(data_type) == 2:
             data1_id1,data2_id1, _ = id1
             data1_id2,data2_id2, _ = id2
@@ -497,12 +328,12 @@ def evaluate_single_epoch(model,
                     id2_out = torch.mean(torch.stack([data1_id2, data2_id2]), dim=0)
                     
                 cos_sim = F.cosine_similarity(id1_out, id2_out, dim=1)
-                
+
                 eer, scores = EER_(cos_sim, labels)
                 accuracy = accuracy_(labels, scores)
 
-            total_eer += eer
-            total_accuracy += accuracy
+                total_eer += eer
+                total_accuracy += accuracy
         
         elif len(data_type) == 3:
             data1_id1,data2_id1,data3_id1, _ = id1
@@ -535,8 +366,8 @@ def evaluate_single_epoch(model,
                 eer, scores = EER_(cos_sim, labels)
                 accuracy = accuracy_(labels, scores)
 
-            total_eer += eer
-            total_accuracy += accuracy
+                total_eer += eer
+                total_accuracy += accuracy
     
     avg_eer = total_eer / len(val_dataloader)
     print("\nAverage val eer: {}".format(avg_eer))
