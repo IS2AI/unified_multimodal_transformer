@@ -8,11 +8,12 @@ from transformers import Wav2Vec2FeatureExtractor
 class Image_Transforms:
     def __init__(self, 
                  library,
-                 model_name, modality):
+                 model_name, modality, dataset_type):
 
         self.library = library
         self.model_name = model_name
         self.modality = modality
+        self.dataset_type = dataset_type
         
         if self.library == "huggingface":
             pass
@@ -24,11 +25,15 @@ class Image_Transforms:
     def timm_init(self):
         if self.model_name == "vit_base_patch16_224":
             # n_channels = 3
-            # mean and std computed for SF dataset only
             if self.modality == "rgb":
-                mean_val = [0.35843268, 0.27319421, 0.23963803]
-                std_val = [0.15948673, 0.13425587, 0.1222331]
-                
+                if self.dataset_type == "SF":
+                    mean_val = [0.35843268, 0.27319421, 0.23963803]
+                    std_val = [0.15948673, 0.13425587, 0.1222331]
+                else:
+                    # VoxCeleb
+                    mean_val = [0.55803093, 0.38461271, 0.34251855]
+                    std_val = [0.19474319, 0.15522242, 0.15067575]
+            
             elif self.modality == "thr":
                 mean_val = [0.94060585, 0.74481036, 0.29649508]
                 std_val = [0.15892989, 0.27409379, 0.26099585]

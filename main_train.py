@@ -204,12 +204,12 @@ if __name__== "__main__":
 
     if 'rgb' in data_type:
         rgb_T = Image_Transforms(model_name=model_name,
-                                library=library, modality="rgb")
+                                library=library, modality="rgb", dataset_type=dataset_type)
         rgb_T = rgb_T.transform  
         
     if 'thr' in data_type:
         thr_T = Image_Transforms(model_name=model_name,
-                                library=library, modality="thr")
+                                library=library, modality="thr", dataset_type=dataset_type)
         thr_T = thr_T.transform   
 
     # Dataset

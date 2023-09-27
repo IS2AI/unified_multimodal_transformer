@@ -24,7 +24,7 @@ import torch.nn.functional as F
 import copy
 from itertools import product
 
-def results_to_csv(val_eer, val_acc, data_type, save_dir, exp_name, path_to_valid_list):
+def results_to_csv(val_eer, val_acc, data_type, save_dir, exp_name, path_to_valid_list, dataset_type):
     
     df = pd.DataFrame(columns = ["data_type_1", "data_type_2", "EER", "accuracy"])
     data_type = sorted(data_type)
@@ -44,9 +44,9 @@ def results_to_csv(val_eer, val_acc, data_type, save_dir, exp_name, path_to_vali
         df.loc[len(df.index)] = [modalities[i], modalities[j], 
                                  val_eer[i,j], val_acc[i,j]]   
     if "valid" in path_to_valid_list:
-        file_name = os.path.join(save_dir, exp_name+"_valid_results.csv")
+        file_name = os.path.join(save_dir, exp_name+"{}_valid_results.csv".format(dataset_type))
     else:
-        file_name = os.path.join(save_dir, exp_name+"_test_results.csv")
+        file_name = os.path.join(save_dir, exp_name+"{}_test_results.csv".format(dataset_type))
     df.to_csv(file_name)
     return df
 
@@ -169,15 +169,17 @@ if __name__== "__main__":
     save_dir = namespace.save_dir
     exp_name = namespace.exp_name
     batch_size = namespace.batch_size
-
+    data_type = namespace.data_type
+    dataset_type = namespace.dataset_type
+    
     params =  torch.load(f'{save_dir}/{exp_name}_input_parameters')
     logs =  torch.load(f'{save_dir}/{exp_name}_logs')
 
     # dataset
     annotation_file = params['annotation_file']
     path_to_train_dataset = params['path_to_train_dataset']
-    data_type = params['data_type']
-    dataset_type = params['dataset_type']
+    
+    
     
     # model
     library = params['library']
@@ -243,12 +245,12 @@ if __name__== "__main__":
 
     if 'rgb' in data_type:
         rgb_T = Image_Transforms(model_name=model_name,
-                                library=library, modality="rgb")
+                                library=library, modality="rgb", dataset_type=dataset_type,)
         rgb_T = rgb_T.transform  
         
     if 'thr' in data_type:
         thr_T = Image_Transforms(model_name=model_name,
-                                library=library, modality="thr")
+                                library=library, modality="thr", dataset_type=dataset_type,)
         thr_T = thr_T.transform  
 
     # Dataset
@@ -302,7 +304,7 @@ if __name__== "__main__":
     val_eer = np.array(val_eer).mean(axis=0)
     val_acc = np.array(val_acc).mean(axis=0)
     
-    results_to_csv(val_eer, val_acc, data_type, save_dir, exp_name, path_to_valid_list)
+    results_to_csv(val_eer, val_acc, data_type, save_dir, exp_name, path_to_valid_list, dataset_type)
     
     
 
