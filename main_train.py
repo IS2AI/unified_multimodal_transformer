@@ -1,6 +1,6 @@
 from speaker_verification.dataset import TrainDataset
 from speaker_verification.dataset import ValidDataset
-from speaker_verification.sampler import ProtoSampler
+from speaker_verification.sampler import SFProtoSampler
 
 from speaker_verification.loss import PrototypicalLoss
 from speaker_verification.train import train_model
@@ -239,7 +239,7 @@ if __name__== "__main__":
         train_sampler = None
 
     elif loss_type == 'metric_learning':
-        train_sampler = ProtoSampler(train_dataset.labels,
+        train_sampler = SFProtoSampler(train_dataset.labels,
                                     n_batch,
                                     n_ways, # n_way
                                     n_support, # n_shots

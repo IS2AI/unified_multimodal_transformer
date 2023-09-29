@@ -2,7 +2,7 @@ from torch.utils.data.sampler import Sampler
 import numpy as np
 import torch
 
-class ProtoSampler(Sampler):
+class SFProtoSampler(Sampler):
 
     def __init__(self, labels, n_batch, n_ways, n_support, n_query):
         self.n_batch = n_batch
@@ -47,6 +47,44 @@ class ProtoSampler(Sampler):
     def __len__(self): # количество элементов в итераторе
         return self.n_batch
 
+class VoxCelebProtoSampler(Sampler):
+    def __init__(self, labels, n_batch, n_ways, n_support, n_query):
+        
+        self.n_ways = n_ways
+        self.n_shots = n_support
+        self.n_query = n_query
+        self.n_elmts = n_support + n_query
+
+        unique_labels = np.unique(labels)
+        self.indices_per_class = []
+        for i in unique_labels:
+            index = np.argwhere(labels == i).reshape(-1)
+            index = torch.from_numpy(index)
+            self.indices_per_class.append(index)
+        
+        self.n_batch = len(unique_labels) // self.n_ways
+    
+    def __iter__(self):
+        
+        n_classes = len(self.indices_per_class)  # Number of unique classes
+        classes = torch.randperm(n_classes)
+        segments = [classes[i:i + self.n_ways] for i in range(0, len(classes), self.n_ways)]
+        
+        for segment in segments[:self.n_batch]:
+            
+            batch = []
+            for class_k in segment:
+                indices_k = self.indices_per_class[class_k]
+                sampled_indices = torch.randint(low=0, high=len(indices_k), size=(self.n_elmts,))
+                batch.append(indices_k[sampled_indices])
+
+            # [tensor([ 9, 45]), tensor([ 6, 32])] --> tensor([ 9,  6, 45, 32])
+            batch_indices = torch.stack(batch).t().reshape(-1).numpy() 
+            yield batch_indices
+
+
+    def __len__(self): 
+        return self.n_batch
 
 class ValidSampler(Sampler):
 

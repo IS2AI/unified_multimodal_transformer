@@ -1,6 +1,6 @@
 from speaker_verification.dataset import TrainDataset
 from speaker_verification.dataset import ValidDataset
-from speaker_verification.sampler import ProtoSampler
+from speaker_verification.sampler import SFProtoSampler
 
 from speaker_verification.loss import PrototypicalLoss
 from speaker_verification.train import train_model
