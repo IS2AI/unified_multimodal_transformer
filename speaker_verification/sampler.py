@@ -1,6 +1,7 @@
 from torch.utils.data.sampler import Sampler
 import numpy as np
 import torch
+import time
 
 class SFProtoSampler(Sampler):
 
@@ -12,40 +13,25 @@ class SFProtoSampler(Sampler):
         self.n_elmts = n_support + n_query
 
         unique_labels = np.unique(labels)
-        self.indices_per_class = []
-        for i in unique_labels:
-            index = np.argwhere(labels == i).reshape(-1)
-            index = torch.from_numpy(index)
-            self.indices_per_class.append(index)
+        self.indices_per_class = [torch.nonzero(torch.tensor(labels) == label).flatten() for label in unique_labels]
+
         
     def __iter__(self):
         for _ in range(self.n_batch):
             batch = []
 
-            # 1.1. choose random classes
-            n_classes = len(self.indices_per_class) # number of unique classes
-            classes = torch.randperm(n_classes)[:self.n_ways]
+            # Choose random classes
+            classes = torch.randperm(len(self.indices_per_class))[:self.n_ways]
 
-            # 1.2. save indices of elements for randomly chosen classes
-            for class_k in classes:
-              # indexes of elements for class k
-                indices_k = self.indices_per_class[class_k]
+            # Choose random elements inside each class 
+            batch = [self.indices_per_class[class_k][torch.randperm(len(self.indices_per_class[class_k]))[:self.n_elmts]] for class_k in classes]
 
-                # choose random elements inside class k
-                n_elements = len(indices_k) 
-                pos = torch.randperm(n_elements)[:self.n_elmts]
-
-                # save indices of chosen elements into batch
-                batch.append(indices_k[pos])
-            
-            # from 2d array to 1d array of indices      # class 1: [element 1, element 2], class 2: [element 1, element 2], ...]
-            # t() - потому что иначе тяжело будет разделить на support и query
-            batch = torch.stack(batch).t().reshape(-1)  # [tensor([ 9, 45]), tensor([ 6, 32])] --> tensor([ 9,  6, 45, 32]) 
-            batch = batch.numpy()
+            batch = torch.stack(batch).t().reshape(-1).numpy()  # [tensor([ 9, 45]), tensor([ 6, 32])] --> tensor([ 9,  6, 45, 32]) 
             yield batch # на выходе:i - class, j - element's number  [x11, x21, x12, x22]
 
     def __len__(self): # количество элементов в итераторе
         return self.n_batch
+    
 
 class VoxCelebProtoSampler(Sampler):
     def __init__(self, labels, n_batch, n_ways, n_support, n_query):
@@ -56,33 +42,22 @@ class VoxCelebProtoSampler(Sampler):
         self.n_elmts = n_support + n_query
 
         unique_labels = np.unique(labels)
-        self.indices_per_class = []
-        for i in unique_labels:
-            index = np.argwhere(labels == i).reshape(-1)
-            index = torch.from_numpy(index)
-            self.indices_per_class.append(index)
+        self.indices_per_class = [torch.nonzero(torch.tensor(labels) == label).flatten() for label in unique_labels]   
         
         self.n_batch = len(unique_labels) // self.n_ways
     
     def __iter__(self):
         
-        n_classes = len(self.indices_per_class)  # Number of unique classes
+        n_classes = len(self.indices_per_class)
         classes = torch.randperm(n_classes)
-        segments = [classes[i:i + self.n_ways] for i in range(0, len(classes), self.n_ways)]
+        segments = [classes[i:i + self.n_ways] for i in range(0, n_classes, self.n_ways)]
         
         for segment in segments[:self.n_batch]:
-            
-            batch = []
-            for class_k in segment:
-                indices_k = self.indices_per_class[class_k]
-                sampled_indices = torch.randint(low=0, high=len(indices_k), size=(self.n_elmts,))
-                batch.append(indices_k[sampled_indices])
-
+            batch = [self.indices_per_class[class_k][torch.randint(len(self.indices_per_class[class_k]), (self.n_elmts,))] for class_k in segment]
             # [tensor([ 9, 45]), tensor([ 6, 32])] --> tensor([ 9,  6, 45, 32])
-            batch_indices = torch.stack(batch).t().reshape(-1).numpy() 
-            yield batch_indices
-
-
+            batch_indices = torch.stack(batch).t().reshape(-1).numpy()
+            yield batch_indices 
+                
     def __len__(self): 
         return self.n_batch
 
