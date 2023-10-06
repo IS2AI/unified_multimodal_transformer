@@ -29,6 +29,9 @@ def createParser():
     
 
     # train_dataloader
+    parser.add_argument ('-sampler', '--sampler', default="SFProtoSampler", 
+                         choices="SFProtoSampler, VoxCelebProtoSampler")
+
     parser.add_argument ('-n_b', '--n_batch', type=int, default=100, 
                         help='Number of batches in train dataloader')
     parser.add_argument ('-n_w', '--n_ways', type=int, default=30,

@@ -1,6 +1,7 @@
 from speaker_verification.dataset import TrainDataset
 from speaker_verification.dataset import ValidDataset
 from speaker_verification.sampler import SFProtoSampler
+from speaker_verification.sampler import VoxCelebProtoSampler
 
 from speaker_verification.loss import PrototypicalLoss
 from speaker_verification.train import train_model
@@ -63,6 +64,7 @@ if __name__== "__main__":
     n_ways = namespace.n_ways
     n_support = namespace.n_support
     n_query = namespace.n_query
+    name_sampler = namespace.sampler
 
     #valid_dataloader
     batch_size = namespace.batch_size
@@ -103,6 +105,7 @@ if __name__== "__main__":
     input_parameters["dist_type"] = dist_type
     input_parameters["loss_type"] = loss_type
     input_parameters["library"] = library
+    input_parameters["sampler"] = name_sampler
 
     input_parameters["model_name"] = model_name
     input_parameters["fine_tune"] = fine_tune
@@ -239,11 +242,18 @@ if __name__== "__main__":
         train_sampler = None
 
     elif loss_type == 'metric_learning':
-        train_sampler = SFProtoSampler(train_dataset.labels,
-                                    n_batch,
-                                    n_ways, # n_way
-                                    n_support, # n_shots
-                                    n_query)
+        if name_sampler =="SFProtoSampler":
+            train_sampler = SFProtoSampler(train_dataset.labels,
+                                        n_batch,
+                                        n_ways, # n_way
+                                        n_support, # n_shots
+                                        n_query)
+        elif name_sampler =="VoxCelebProtoSampler":
+            train_sampler = VoxCelebProtoSampler(train_dataset.labels,
+                                        n_ways, # n_way
+                                        n_support, # n_shots
+                                        n_query)
+
         train_dataloader = DataLoader(dataset=train_dataset, 
                                 batch_sampler=train_sampler)
 

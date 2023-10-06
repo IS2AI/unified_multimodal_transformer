@@ -34,7 +34,7 @@ class SFProtoSampler(Sampler):
     
 
 class VoxCelebProtoSampler(Sampler):
-    def __init__(self, labels, n_batch, n_ways, n_support, n_query):
+    def __init__(self, labels, n_ways, n_support, n_query):
         
         self.n_ways = n_ways
         self.n_shots = n_support
