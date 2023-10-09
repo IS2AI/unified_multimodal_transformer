@@ -16,7 +16,7 @@ import numpy as np
 import random
 import wandb
 import os
-
+import time
 
 if __name__== "__main__":
 
@@ -225,7 +225,6 @@ if __name__== "__main__":
                                 thr_transform=thr_T,
                                 audio_transform=audio_T)
 
-
     valid_dataset= ValidDataset(path_to_valid_dataset=path_to_valid_dataset, 
                                 path_to_valid_list=path_to_valid_list, 
                                 data_type=data_type,
@@ -248,6 +247,7 @@ if __name__== "__main__":
                                         n_ways, # n_way
                                         n_support, # n_shots
                                         n_query)
+      
         elif name_sampler =="VoxCelebProtoSampler":
             train_sampler = VoxCelebProtoSampler(train_dataset.labels,
                                         n_ways, # n_way
@@ -256,10 +256,8 @@ if __name__== "__main__":
 
         train_dataloader = DataLoader(dataset=train_dataset, 
                                 batch_sampler=train_sampler)
-
     valid_dataloader = DataLoader(dataset=valid_dataset,
                             batch_size=batch_size)
-
     pretrained_model = Model(library=library, 
             pretrained_weights=pretrained_weights, 
             fine_tune=fine_tune, 
@@ -267,7 +265,7 @@ if __name__== "__main__":
             model_name = model_name,
             pool=pool,
             data_type=data_type)
-
+    
     
     if loss_type == 'classification':
         n_classes = len(np.unique(train_dataset.labels))

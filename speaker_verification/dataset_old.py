@@ -40,11 +40,15 @@ class TrainDataset(Dataset):
         self.dataset_type = dataset_type
 
         self.df_all = pd.read_csv(annotations_file)
-        
-        self.df_all.reset_index(inplace=True)
-        self.df_all = self.df_all.drop(["index"], axis=1)
+        self.df_all = self.df_all[self.df_all["dataset"] == self.dataset_type]
 
-        self.labels = self.df_all["new_ids"].values
+        self.df_all = self.df_all[self.df_all['train_type'] == self.train_type]
+        self.df_wav = self.df_all[self.df_all['data_type'] == 'wav']
+
+        self.df_wav.reset_index(inplace=True)
+        self.df_wav = self.df_wav.drop(["index"], axis=1)
+
+        self.labels = self.df_wav["new_ids"].values
 
         self.encoder = LabelEncoder()
         self.encoder.fit(np.unique(self.labels))
@@ -59,21 +63,33 @@ class TrainDataset(Dataset):
         return len(self.df_wav)
 
     def __getitem__(self, index):
+        time_start = time.time()
         sample = self._get_data(index)
+        time_end = time.time()
+        print(f'Get item time required: {time_end-time_start}')
         return sample
 
     def _get_data(self, index):
         
         label = self._get_sample_label(index)
         
+        time_start = time.time()
         path2wav, path2rgb, path2thr = self._get_sample_path(index)
+        time_end = time.time()
+        print(f'Get path time required: {time_end-time_start}')
         data = {}
         
         if "wav" in self.data_type:
             if path2wav:
+                time_start = time.time()
                 data["wav"], sample_rate = torchaudio.load(path2wav)
+                time_end = time.time()
+                print(f'Load wav time required: {time_end-time_start}')
             if self.audio_transform:
+                time_start = time.time()
                 data["wav"] = self.audio_transform(data["wav"], sample_rate)
+                time_end = time.time()
+                print(f'Audio transform time required: {time_end-time_start}')
         if "rgb" in self.data_type:
             if path2rgb:
                 data["rgb"] = io.imread(path2rgb)
@@ -92,31 +108,52 @@ class TrainDataset(Dataset):
         return sample
 
     def _get_sample_path(self, index):
-        
-        person_id = self.df_all.loc[index, "person_id"]
-        session_id = self.df_all.loc[index, "session_id"]
-        utterance = int(self.df_all.loc[index, "utterance"])
-        wav_source = self.df_all.loc[index, "wav"]
-        rgb_source = self.df_all.loc[index, "rgb"]    
+        time_start = time.time()
+        print(self.df_wav.loc[index])
+        dataset_type = self.df_wav.loc[index, "dataset"]
+        person_id = self.df_wav.loc[index, "person_id"]
+        session_id = self.df_wav.loc[index, "session_id"]
+        utterance = int(self.df_wav.loc[index, "utterance"])
+        time_end = time.time()
+        print(f'Get dataset_type,person_id,session_id,utterance time required: {time_end-time_start}')
+        time_start = time.time()
+        df_sample = self.df_all[(self.df_all.dataset == dataset_type) & 
+                                (self.df_all.person_id == person_id) & 
+                                (self.df_all.session_id == session_id) & 
+                                (self.df_all.utterance == utterance)]
+        time_end = time.time()
+        print(f'Get df_sample time required: {time_end-time_start}')
+        print(df_sample)
 
+        time_start = time.time()    
         if self.dataset_type == "VX2":
             person_id_real = f'id{person_id:05d}'
-           
         elif self.dataset_type == "SF":
             person_id_real = f'sub_{person_id}'
-            thr_source = self.df_all.loc[index, "thr"]
-        
+        time_end = time.time()
+        print(f'Get person_id_real time required: {time_end-time_start}')
+
         path2wav = path2rgb = path2thr = None
         for data_type in self.data_type:
+            time_start = time.time()
             if data_type == 'wav':
-                path2wav = os.path.join(self.path_to_train_dataset, person_id_real,
-                                            str(session_id), 'wav', wav_source)
+                if 'wav' in df_sample['data_type'].values:
+                    path2wav = os.path.join(self.path_to_train_dataset, person_id_real,
+                                            str(session_id), 'wav', 
+                                            df_sample[df_sample['data_type'] == 'wav'].iloc[0, 0])
+                time_end = time.time()
+                print(f'Get path2wav time required: {time_end-time_start}')    
+            
             elif data_type == 'rgb':
-                path2rgb = os.path.join(self.path_to_train_dataset, person_id_real,
-                                            f'{session_id}', 'rgb', f'{utterance}',rgb_source)
+                if 'rgb' in df_sample['data_type'].values:
+                    path2rgb = os.path.join(self.path_to_train_dataset, person_id_real,
+                                            f'{session_id}', 'rgb', f'{utterance}',
+                                            df_sample[df_sample['data_type'] == 'rgb'].iloc[0, 0])
             elif data_type == 'thr':
-                path2thr = os.path.join(self.path_to_train_dataset, person_id_real,
-                                            f'{session_id}', 'thr', f'{utterance}',thr_source)
+                if 'thr' in df_sample['data_type'].values:
+                    path2thr = os.path.join(self.path_to_train_dataset, person_id_real,
+                                            f'{session_id}', 'thr', f'{utterance}',
+                                            df_sample[df_sample['data_type'] == 'thr'].iloc[0, 0])
 
         return path2wav, path2rgb, path2thr
     def _get_sample_label(self, index):

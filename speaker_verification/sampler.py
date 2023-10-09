@@ -14,7 +14,6 @@ class SFProtoSampler(Sampler):
 
         unique_labels = np.unique(labels)
         self.indices_per_class = [torch.nonzero(torch.tensor(labels) == label).flatten() for label in unique_labels]
-
         
     def __iter__(self):
         for _ in range(self.n_batch):
@@ -22,10 +21,8 @@ class SFProtoSampler(Sampler):
 
             # Choose random classes
             classes = torch.randperm(len(self.indices_per_class))[:self.n_ways]
-
             # Choose random elements inside each class 
             batch = [self.indices_per_class[class_k][torch.randperm(len(self.indices_per_class[class_k]))[:self.n_elmts]] for class_k in classes]
-
             batch = torch.stack(batch).t().reshape(-1).numpy()  # [tensor([ 9, 45]), tensor([ 6, 32])] --> tensor([ 9,  6, 45, 32]) 
             yield batch # на выходе:i - class, j - element's number  [x11, x21, x12, x22]
 

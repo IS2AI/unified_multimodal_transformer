@@ -4,7 +4,7 @@ import gc
 import torch
 import torch.nn.functional as F
 import random
-
+import time
 from speaker_verification.metrics import EER_
 from speaker_verification.metrics import accuracy_
 from timeit import default_timer as timer
@@ -42,6 +42,7 @@ def train_model(model,
 
 
         if loss_type == "metric_learning":
+            #start_time = time.time()
             model, train_loss, train_acc = train_singe_epoch(model=model, 
                                     train_dataloader=train_dataloader,
                                     epoch=epoch, 
@@ -53,7 +54,8 @@ def train_model(model,
                                     device=device,
                                     data_type=data_type,
                                     loss_type=loss_type)
-
+            #end_time = time.time()
+            #print(f'train_singe_epoch time required: {end_time-start_time}')
         elif loss_type == "classification":
             model, train_loss, train_acc = train_singe_epoch(model=model, 
                                     train_dataloader=train_dataloader,
@@ -119,14 +121,29 @@ def train_model(model,
     return model
 
 def train_unimodal(data, label, device, model, criterion, loss_type, n_ways, n_shots, n_query):
+    #time_start = time.time()
     data = data.to(device)
+    #time_end = time.time()
+    #print(f'to(device) time required: {time_end-time_start}')
+    #time_start = time.time()    
     data = model(data)
-
+    #time_end = time.time()
+    #print(f'model(data) time required: {time_end-time_start}')
+          
     if loss_type == "metric_learning":
+        #time_start = time.time()
         label = torch.arange(n_ways).repeat(n_query)
         label = label.to(device)
+        #time_end = time.time()
+        #print(f'torch.arange(n_ways).repeat(n_query) and label.to(device) time required: {time_end-time_start}')
+        #time_start = time.time()
         loss, logits = criterion(data, label, n_ways, n_shots, n_query)
+        #time_end = time.time()
+        #print(f'criterion(data, label, n_ways, n_shots, n_query) time required: {time_end-time_start}')
+        #time_start = time.time()
         pred = F.softmax(logits,dim=1).argmax(dim=1)
+        #time_end = time.time()
+        #print(f'F.softmax(logits,dim=1).argmax(dim=1) time required: {time_end-time_start}')
 
     elif loss_type == "classification":
         label = label.to(device)
@@ -236,9 +253,15 @@ def train_singe_epoch(model,
         data_type = sorted(data_type)
 
         if len(data_type) == 1:
+            #time_start = time.time()
             data, label = batch
+            #time_end = time.time()
+            #print(f'batch time required: {time_end-time_start}')    
+            #time_start = time.time()
             loss, accuracy = train_unimodal(data, label, device, model, criterion,  
                                             loss_type, n_ways, n_shots, n_query)
+            #time_end = time.time()
+            #print(f'train_unimodal time required: {time_end-time_start}')
             
         elif len(data_type) == 2: # two modalities
             data1, data2, label = batch
@@ -251,11 +274,13 @@ def train_singe_epoch(model,
                           loss_type, n_ways, n_shots, n_query)  
         total_loss += loss.item()
         total_acc += accuracy.item()
-        
+        #time_start = time.time()
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
-    
+        #time_end = time.time()
+        #print(f'optimizer.zero_grad(), loss.backward(), optimizer.step() time required: {time_end-time_start}')
+
     avg_loss = total_loss / len(train_dataloader)
     avg_acc = total_acc / len(train_dataloader)
 
