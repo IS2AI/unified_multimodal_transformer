@@ -1,14 +1,14 @@
-from speaker_verification.dataset import TrainDataset
-from speaker_verification.dataset import ValidDataset
-from speaker_verification.sampler import SFProtoSampler
+from utils.dataset import TrainDataset
+from utils.dataset import ValidDataset
+from utils.sampler import SFProtoSampler
 
-from speaker_verification.loss import PrototypicalLoss
-from speaker_verification.train import train_model
-from speaker_verification.parser import createParser
-from speaker_verification.transforms import Audio_Transforms
-from speaker_verification.transforms import Image_Transforms
-from speaker_verification.models import Model
-from speaker_verification.train import evaluate_single_epoch
+from utils.loss import PrototypicalLoss
+from utils.train import train_model
+from utils.parser import createParser
+from utils.transforms import Audio_Transforms
+from utils.transforms import Image_Transforms
+from utils.models import Model
+from utils.train import evaluate_single_epoch
 import torch
 from torch.utils.data import DataLoader
 import numpy as np
