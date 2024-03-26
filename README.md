@@ -9,7 +9,7 @@ We present a transformer-based model for biometric verification, leveraging the 
 
 The preprocessed data used for our experiments can be downloaded from [Google Drive](https://drive.google.com/drive/folders/16T3FKwBbCkrgaJhEGFDw8pqR_z30eP7U?usp=sharing).
 
-The *SpeakingFaces* directory contains the compressed version of the preprocessed data used for the reported experiments on SpeakingFaces dataset. The train set is split into 5 parts that should be extracted into the same location. For each utterance in the train split, only the first frame (visual and thermal) is selected. For each utterance in the test and validation splits, 10 equidistant frames (visual and thermal) are selected. 
+The *SpeakingFaces* directory contains the compressed version of the preprocessed data used for the reported experiments on SpeakingFaces dataset. The train set is split into 5 parts that should be extracted into the same location. For each utterance in the train split, only the first frame (visual and thermal) is selected. For each utterance in the test and validation splits, 10 equidistant frames (visual and thermal) are selected. All 7 parts of the data, should be extracted to the same folder. 
 
 The *SpeakingFaces/metadata* contains lists prepared for the train, validation, and test sets:
 1) *train_list.txt* contains the paths to the recordings and the corresponding subject identifiers present in SpeakingFaces. 
