@@ -1,6 +1,11 @@
 import numpy as np
 from sklearn.metrics import roc_curve
 from sklearn.metrics import accuracy_score
+from itertools import product
+import numpy as np
+import torch.nn.functional as F
+from itertools import combinations
+import torch
 
 
 def EER_(cos_sim, labels):
@@ -17,45 +22,6 @@ def EER_(cos_sim, labels):
 
     return eer, scores
 
-def EER_handmade(cos_sim, labels):
-
-    thresholds = []
-    FPR = []
-    FNR = []
-
-    for threshold in np.linspace(0.1,0.9,10):
-        thresholds.append(threshold)
-        scores = cos_sim > threshold
-
-        FP = 0
-        FN = 0
-        TN = 0
-        TP = 0
-
-        for i in range(len(scores)):
-            if scores[i]:
-                if scores[i] == labels[i]:
-                    TP += 1
-                else:
-                    FP += 1
-            else:
-                if scores[i] == labels[i]:
-                    TN += 1
-                else:
-                    FN += 1
-
-        fpr = FP / (FP + TN)
-        fnr = FN / (FN + TP)
-
-        FPR.append(fpr)
-        FNR.append(fnr)
-        
-    FNR = np.array(FNR)
-    FPR = np.array(FPR)
-    EER_threshold = thresholds[np.nanargmin(np.absolute((FNR - FPR)))]
-    EER = FPR[np.nanargmin(np.absolute((FNR - FPR)))]
-
-    return EER, EER_threshold
 
 def accuracy_(labels, scores):
     errors = np.absolute(scores-labels.numpy()).sum()
@@ -64,3 +30,72 @@ def accuracy_(labels, scores):
 
 def accuracy_sklearn(labels, scores):
     return accuracy_score(labels, scores)
+
+def get_eer_accuracy(id1, id2, labels):
+    """
+    Calculates the Equal Error Rate (EER) and accuracy for the given inputs.
+
+    Args:
+        id1 (torch.Tensor): The first input tensor.
+        id2 (torch.Tensor): The second input tensor.
+        labels (torch.Tensor): The labels tensor.
+
+    Returns:
+        tuple: A tuple containing the EER and accuracy values.
+
+    """
+    cos_sim = F.cosine_similarity(id1, id2, dim=1)
+    eer, scores = EER_(cos_sim, labels)
+    accuracy = accuracy_(labels, scores)
+    return eer, accuracy
+
+def get_index_pairs(l1, l2):
+    """
+    Returns a list of index pairs for two input lists.
+
+    Args:
+        l1 (list): The first input list.
+        l2 (list): The second input list.
+
+    Returns:
+        list: A list of index pairs, where each pair consists of the indices from l1 and l2.
+
+    """
+    return list(product(range(len(l1)), range(len(l2))))
+
+def calculate_total_eer_accuracy(id1, id2, labels):
+    """
+    Calculate the total equal error rate (EER) and accuracy for pairs of IDs.
+
+    Args:
+        id1 (list): List of IDs for the first set of samples.
+        id2 (list): List of IDs for the second set of samples.
+        labels (list): List of labels for the samples.
+
+    Returns:
+        tuple: A tuple containing two numpy arrays - total_eer and total_accuracy.
+            - total_eer: A 2D numpy array representing the EER values for each pair of IDs.
+            - total_accuracy: A 2D numpy array representing the accuracy values for each pair of IDs.
+    """
+    total_eer = np.zeros((len(id1), len(id2)))
+    total_accuracy = np.zeros((len(id1), len(id2)))
+
+    for i, j in get_index_pairs(id1, id2):
+        eer, accuracy = get_eer_accuracy(id1[i], id2[j], labels)
+        total_eer[i, j] = eer
+        total_accuracy[i, j] = accuracy
+
+    return total_eer, total_accuracy
+
+
+def calculate_mean_combinations(data_list):
+    """
+    Calculates the mean of each pair of tensors in the given data_list.
+
+    Args:
+        data_list (list): A list of tensors.
+
+    Returns:
+        list: A list of tensors, where each tensor is the mean of a pair of tensors from data_list.
+    """
+    return [torch.mean(torch.stack(pair), dim=0) for pair in combinations(data_list, 2)]
