@@ -1,19 +1,13 @@
-from utils.dataset import TrainDataset
 from utils.dataset import ValidDataset
-from utils.sampler import SFProtoSampler
-
-from utils.loss import PrototypicalLoss
-from utils.train import train_model
-from utils.parser import createParser
 from utils.transforms import Audio_Transforms
 from utils.transforms import Image_Transforms
 from utils.models import Model
 from utils.train import evaluate_single_epoch
+
 import torch
 from torch.utils.data import DataLoader
 import numpy as np
 import random
-import wandb
 import os
 
 
@@ -33,16 +27,12 @@ if __name__== "__main__":
     
     # Save
     save_dir = namespace.save_dir
-    data_type = namespace.data_type # ['wav', 'rgb']
     exp_name = namespace.exp_name
-    batch_size = namespace.batch_size
-    print(batch_size)
+
     # Loaded parameters
-    params =  torch.load(f'{save_dir}/{"_".join(data_type)}_{exp_name}_input_parameters')
+    params =  torch.load(f'{save_dir}/{exp_name}_input_parameters')
     
     # dataset
-    annotation_file = params['annotation_file']
-    path_to_train_dataset = params['path_to_train_dataset']
     data_type = params['data_type']
     dataset_type = params['dataset_type']
     
@@ -52,20 +42,11 @@ if __name__== "__main__":
     pretrained_weights=params['pretrained_weights']
     fine_tune=params['fine_tune']
     embedding_size=params['embedding_size']
-    #pool = ?
-    
-    
-    pool = params['pool']
-
-    # sampler
-    n_batch=params['n_batch']
-    n_ways=params['n_ways']
-    n_support=params['n_support']
-    n_query=params['n_query']
+    pool='default'
 
     # loss
-    dist_type=params['dist_type']
     loss_type=params['loss_type']
+    batch_size=params['valid_batch_size']
     
     # audio transform params
     sample_rate= params['sample_rate']
@@ -138,24 +119,18 @@ if __name__== "__main__":
             pool=pool,
             data_type=data_type)
     
-    if loss_type == 'classification':
-        n_classes = len(np.unique(train_dataset.labels))
-        classification_layer = torch.nn.Linear(embedding_size, n_classes)
-        model = torch.nn.Sequential()
-        model.add_module('pretrained_model', pretrained_model)
-        model.add_module('classification_layer', classification_layer)
     
-    elif loss_type == 'metric_learning':
+    if loss_type == 'metric_learning':
         model = pretrained_model
     
     # Load model weights    
-    PATH=f'{save_dir}/{"_".join(data_type)}_{exp_name}_best_eer.pth'
+    PATH=f'{save_dir}/{exp_name}_best_eer.pth'
     model.load_state_dict(torch.load(PATH))
     model = model.to(device)
     print("Loaded weights")
     
     # Test
-    logs = torch.load(f'{save_dir}/{"_".join(data_type)}_{exp_name}_logs')
+    logs = torch.load(f'{save_dir}/{exp_name}_logs')
     
     epoch = np.argmin(logs['val_eer'])+1
     print(f"at epoch {epoch}")
@@ -168,9 +143,8 @@ if __name__== "__main__":
     
     logs['best_test_eer'] = val_eer
     logs['best_test_acc'] = val_acc
-    torch.save(logs,f'{save_dir}/{"_".join(data_type)}_{exp_name}_logs')
+    torch.save(logs,f'{save_dir}/{exp_name}_logs')
     
-
 
 
 
