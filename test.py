@@ -84,7 +84,9 @@ if __name__== "__main__":
                                     window_fn=torch.hamming_window,
                                     n_mels=n_mels,
                                     model_name=model_name,
-                                    library=library)
+                                    library=library,
+                                    dataset_type=dataset_type)
+        
         audio_T = audio_T.transform
 
     if 'rgb' in data_type:
@@ -145,6 +147,3 @@ if __name__== "__main__":
     logs['best_test_acc'] = val_acc
     torch.save(logs,f'{save_dir}/{exp_name}_logs')
     
-
-
-
