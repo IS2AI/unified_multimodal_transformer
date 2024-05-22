@@ -75,7 +75,8 @@ class Audio_Transforms:
                 n_mels,
                 model_name, 
                 library, 
-                mode
+                mode,
+                dataset_type
                 ):
 
         self.sample_rate = sample_rate
@@ -88,6 +89,7 @@ class Audio_Transforms:
         self.model_name = model_name
         self.library = library
         self.mode = mode
+        self.dataset_type = dataset_type
 
         if self.library == "huggingface":
             self.huggingface_init()
@@ -136,7 +138,10 @@ class Audio_Transforms:
     # MAIN TRANSFORM FUNCTION
     def transform(self, signal, sample_rate):
         if self.mode == "train":
-            signal = self.basic_transform(signal, sample_rate)  
+            if self.dataset_type=="VX2":
+                signal = self.basic_transform_vx2(signal, sample_rate)  
+            elif self.dataset_type=="SF":
+                signal = self.basic_transform_sf(signal, sample_rate)  
         elif self.mode == "test":
             signal = self.test_transform(signal, sample_rate)
         
@@ -148,9 +153,8 @@ class Audio_Transforms:
             inputs = self.pytorch_transform(signal)
         
         return inputs
-    
-    def basic_transform(self, signal, sample_rate):
 
+    def basic_transform_vx2(self, signal, sample_rate):
         # stereo --> mono
         if signal.shape[0] > 1:
             signal = torch.mean(signal, dim=0, keepdim=True)
@@ -181,6 +185,36 @@ class Audio_Transforms:
             
         return segment
     
+    def basic_transform_sf(self, signal, sample_rate):
+        # stereo --> mono
+        if signal.shape[0] > 1:
+            signal = torch.mean(signal, dim=0, keepdim=True)
+        
+        # sample_rate --> 16000
+        if sample_rate != self.sample_rate:
+            resampler = torchaudio.transforms.Resample(sample_rate, self.sample_rate)
+            signal = resampler(signal)
+
+        segment_length = self.sample_duration * self.sample_rate # sample length of the audio signal
+        signal_length = signal.shape[1]
+
+        if signal_length < segment_length:
+            num_missing_points = int(segment_length - signal_length)
+            dim_padding = (0, num_missing_points) # (left_pad, right_pad)
+            # ex: dim_padding = (1,2) --> [1,1,1] -> [0,1,1,1,0,0]
+            segment = torch.nn.functional.pad(signal, dim_padding)
+
+        elif signal_length > segment_length:
+            middle_of_the_signal = signal_length // 2
+            left_edge = int(middle_of_the_signal - segment_length // 2)
+            right_edge = int(middle_of_the_signal + segment_length // 2)
+            segment = signal[:,left_edge:right_edge]
+
+        else:
+            segment = signal
+        
+        return segment
+    
     def test_transform(self, signal, sample_rate):
 
         # stereo --> mono
@@ -200,7 +234,6 @@ class Audio_Transforms:
             num_missing_points = int(segment_length - signal_length)
             left_padding = (num_missing_points + 1) // 2
             right_padding = num_missing_points - left_padding
-            
             segment = torch.zeros((signal.shape[0], segment_length))
             segment[:, left_padding:-right_padding] = signal
             
@@ -210,7 +243,8 @@ class Audio_Transforms:
             end_frame = start_frame + segment_length
             # extract the segment from the audio signal
             segment = signal[:, start_frame:end_frame]
-            
+        else:
+            segment = signal
         return segment
 
 
@@ -222,8 +256,11 @@ class Audio_Transforms:
 
     def timm_transform(self, audio):
         input = self.to_MelSpectrogram(audio)
-        input = input+1e-6
-        input = input.log()
+        
+        if self.dataset_type == "VX2":
+            input = input+1e-6
+            input = input.log()
+        
         input = self.instance_norm(input)
         
         if self.model_name == "vit_base_patch16_224":
