@@ -1,7 +1,7 @@
 from tqdm.auto import tqdm
-from tqdm import trange
+
 import torch
-from utils.metrics import EER_
+
 from utils.metrics import get_eer_accuracy
 from utils.metrics import calculate_mean_combinations
 from utils.metrics import calculate_total_eer_accuracy
@@ -119,7 +119,14 @@ def evaluate(model, val_dataloader, epoch, device, data_type, loss_type, mode):
             eer,accuracy = evaluate_pair(model, id1, id2, labels, device, modalities=len(data_type))
             total_eer.append(eer)
             total_accuracy.append(accuracy)
-        
+            
+        if data_type_len > 1:
+            
+            val_eer = np.array(total_eer).mean(axis=0)
+            val_acc = np.array(total_accuracy).mean(axis=0)
+            
+            results_to_csv(val_eer, val_acc, data_type, save_dir, exp_name, path_to_valid_list, dataset_type)
+            
         return model, total_eer, total_accuracy
         
         
