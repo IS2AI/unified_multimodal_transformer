@@ -1,15 +1,15 @@
-from utils.dataset import ValidDataset
-from utils.transforms import Audio_Transforms
-from utils.transforms import Image_Transforms
-from utils.models import Model
-from utils.train import evaluate_single_epoch
-
 import torch
 from torch.utils.data import DataLoader
 import numpy as np
 import random
 import os
 
+from utils.dataset import ValidDataset
+from utils.transforms import Audio_Transforms , Image_Transforms
+from torch.utils.data import DataLoader
+from utils.dataset import TrainDataset
+from utils.evaluate import evaluate
+from utils.parser import createParser
 
 if __name__== "__main__":
     
@@ -20,6 +20,9 @@ if __name__== "__main__":
     n_gpu = namespace.n_gpu
     seed_number = namespace.seed
     print("SEED {}".format(seed_number))
+    
+    # Mode
+    mode = namespace.mode
     
     # Validation data
     path_to_valid_dataset = namespace.path_to_valid_dataset
@@ -85,7 +88,8 @@ if __name__== "__main__":
                                     n_mels=n_mels,
                                     model_name=model_name,
                                     library=library,
-                                    dataset_type=dataset_type)
+                                    dataset_type=dataset_type,
+                                    mode=mode)
         
         audio_T = audio_T.transform
 
@@ -127,7 +131,7 @@ if __name__== "__main__":
     
     # Load model weights    
     PATH=f'{save_dir}/{exp_name}_best_eer.pth'
-    model.load_state_dict(torch.load(PATH))
+    model.load_state_dict(torch.load(PATH, map_location=torch.device('cuda:0')))
     model = model.to(device)
     print("Loaded weights")
     
@@ -136,12 +140,18 @@ if __name__== "__main__":
     
     epoch = np.argmin(logs['val_eer'])+1
     print(f"at epoch {epoch}")
-    model, val_eer, val_acc = evaluate_single_epoch(model, 
-                                  valid_dataloader,
-                                  epoch,
-                                  device,
-                                  data_type,
-                                  loss_type)
+    model, val_eer, val_acc = evaluate(model,
+                                       valid_dataloader,
+                                       epoch,
+                                       device,
+                                       data_type,
+                                       loss_type,
+                                       mode,
+                                       save_dir,
+                                       exp_name,
+                                       path_to_valid_list,
+                                       dataset_type
+                                      )
     
     logs['best_test_eer'] = val_eer
     logs['best_test_acc'] = val_acc
