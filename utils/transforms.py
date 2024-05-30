@@ -261,7 +261,7 @@ class Audio_Transforms:
             input = input+1e-6
             input = input.log()
         
-        input = self.instance_norm(input)
+            input = self.instance_norm(input)
         
         if self.model_name == "vit_base_patch16_224":
             input = input.repeat(3, 1, 1)
