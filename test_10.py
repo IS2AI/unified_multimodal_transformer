@@ -417,8 +417,7 @@ if __name__== "__main__":
     model.load_state_dict(torch.load(PATH))
     model = model.to(device)
     print("Loaded weights")
-
-    # first option
+    
     logs =  torch.load(f'{save_dir}/{exp_name}_logs')
     epoch = np.argmin(logs['val_eer'])+1
     print(f"at epoch {epoch}")
@@ -447,6 +446,3 @@ if __name__== "__main__":
         logs['best_test_eer'] = val_eer
         logs['best_test_acc'] = val_acc
         torch.save(logs,f'{save_dir}/{exp_name}_logs')
-    
-    
-    # second option
