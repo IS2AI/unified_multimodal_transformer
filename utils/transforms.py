@@ -150,7 +150,11 @@ class Audio_Transforms:
             elif self.dataset_type=="SF":
                 signal = self.basic_transform_sf(signal, sample_rate)  
         elif self.mode == "test":
-            signal = self.test_transform(signal, sample_rate)
+            if self.dataset_type=="VX2":
+                signal = self.test_transform(signal, sample_rate) 
+            elif self.dataset_type=="SF":
+                signal = self.basic_transform_sf(signal, sample_rate)  
+            
         
         if self.library == "huggingface":
             inputs = self.huggingface_transform(signal)
