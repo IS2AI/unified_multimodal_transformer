@@ -2,7 +2,10 @@ import argparse
 
 def createParser():
     parser = argparse.ArgumentParser(description='Input parameters to train the model.')
-
+    
+    # mode
+    parser.add_argument ('-mode', '--mode', default="train", help='Mode of the script: train or test.')
+    
     # device
     parser.add_argument ('-n_gpu', '--n_gpu', type=int, default=0,
                         help='Number of GPU core.')
