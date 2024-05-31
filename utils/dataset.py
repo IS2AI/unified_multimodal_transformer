@@ -131,7 +131,8 @@ class ValidDataset(Dataset):
                        dataset_type,
                        rgb_transform=None, 
                        thr_transform=None, 
-                       audio_transform=None
+                       audio_transform=None,
+                       num_eval=1
                 ):
 
         super(ValidDataset, self).__init__()
@@ -148,11 +149,13 @@ class ValidDataset(Dataset):
         self.thr_transform = thr_transform
         self.audio_transform = audio_transform
 
+        self.num_eval = num_eval
+
     def __len__(self):
         return len(self.pairs_list)
 
     def __getitem__(self, index):
-
+        
         id1_path, id2_path, label =  self._get_pair(index)
 
         id1 = self._get_data(id1_path)
@@ -183,7 +186,11 @@ class ValidDataset(Dataset):
                 data["wav"] = self.audio_transform(data["wav"], sample_rate)
 
         if "rgb" in self.data_type:
-            data["rgb"] = io.imread(path2rgb)
+            if self.num_eval > 1:
+                data["rgb"] = [io.imread(path2rgb_item) for path2rgb_item in path2rgb]
+            else:
+                data["rgb"] = io.imread(path2rgb)
+            
             if self.rgb_transform:
                 data["rgb"] = self.rgb_transform(data["rgb"])
             
@@ -212,7 +219,11 @@ class ValidDataset(Dataset):
 
             path2rgb = f"{path}/" + "/".join(id_path.split("/")[:-2]) + "/" + "rgb" + "/"  + str(int(id_path.split("/")[-1].split(".")[0])) 
             onlyfiles = [f for f in listdir(path2rgb) if isfile(join(path2rgb, f)) and 'jpg' in f]
-            path2rgb = path2rgb + "/" + onlyfiles[0]
+            onlyfiles.sort()
+            if self.num_eval > 1:
+                path2rgb = [path2rgb + "/" + onlyfile for onlyfile in onlyfiles]
+            else:
+                path2rgb = path2rgb + "/" + onlyfiles[0]
 
             path2thr = f"{path}/" + "/".join(id_path.split("/")[:-2]) + "/" + "thr" + "/" + str(int(id_path.split("/")[-1].split(".")[0]))
             onlyfiles = [f for f in listdir(path2thr) if isfile(join(path2thr, f)) and 'jpg' in f]

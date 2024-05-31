@@ -4,16 +4,22 @@ import torchvision.transforms as T
 from transformers import ASTFeatureExtractor
 from transformers import Wav2Vec2FeatureExtractor
 import torch.nn as nn
+import time
+import numpy as np
 
 class Image_Transforms:
     def __init__(self, 
                  library,
-                 model_name, modality, dataset_type):
+                 model_name, 
+                 modality, 
+                 dataset_type,
+                 num_eval=1):
 
         self.library = library
         self.model_name = model_name
         self.modality = modality
         self.dataset_type = dataset_type
+        self.num_eval = num_eval
         
         if self.library == "huggingface":
             pass
@@ -60,6 +66,9 @@ class Image_Transforms:
 
     # MAIN TRANSFORM FUNCTION
     def transform(self, image):
+            if self.num_eval > 1: # TODO(yuliya) Should we return tensor right awaya
+                return [self.transform_image(image_item) for image_item in image]
+
             return self.transform_image(image)
 
 
@@ -76,7 +85,8 @@ class Audio_Transforms:
                 model_name, 
                 library, 
                 mode,
-                dataset_type
+                dataset_type,
+                num_eval = 1
                 ):
 
         self.sample_rate = sample_rate
@@ -90,6 +100,7 @@ class Audio_Transforms:
         self.library = library
         self.mode = mode
         self.dataset_type = dataset_type
+        self.num_eval = num_eval
 
         if self.library == "huggingface":
             self.huggingface_init()
@@ -119,10 +130,6 @@ class Audio_Transforms:
             # n_channels = 1
             self.vit_transform=T.Compose([
                 T.Resize(size=(224,224))
-                #T.ToPILImage(),
-                #T.Resize(size=(224,224), interpolation=T.InterpolationMode.BICUBIC, max_size=None, antialias=None),
-                #T.ToTensor(),
-                #T.Normalize(mean=torch.tensor([0.485, 0.456, 0.406]), std=torch.tensor([0.229, 0.224, 0.225]))
             ])
 
     def pytorch_init(self):
@@ -179,9 +186,13 @@ class Audio_Transforms:
         elif signal_length > segment_length:
             # generate a random starting index for the segment
             start_index = torch.randint(0, signal_length - segment_length, (1,)).item()
-
             # extract the segment starting from the random index
             segment = signal.narrow(1, start_index, segment_length)
+        
+        if self.num_eval > 1:
+            start_frames = np.linspace(0, signal_length - segment_length, num=10, dtype=int)
+            segments = [signal[:, start_frame:start_frame + segment_length] for start_frame in start_frames]
+            return segments
             
         return segment
     
@@ -245,6 +256,12 @@ class Audio_Transforms:
             segment = signal[:, start_frame:end_frame]
         else:
             segment = signal
+        
+        # 10 vs 10 audio TODO change
+        if self.num_eval > 1:
+            start_frames = np.linspace(0, signal_length - segment_length, num=10, dtype=int)
+            segments = [signal[:, start_frame:start_frame + segment_length] for start_frame in start_frames]
+            return segments
         return segment
 
 
@@ -255,6 +272,21 @@ class Audio_Transforms:
         return input
 
     def timm_transform(self, audio):
+        if self.num_eval > 1 :
+            inputs = []
+            for audio_inst in audio:
+                input = self.to_MelSpectrogram(audio_inst)
+                input = input+1e-6
+                input = input.log()
+                input = self.instance_norm(input)
+                if self.model_name == "vit_base_patch16_224":
+                    input = input.repeat(3, 1, 1)
+                    input = self.vit_transform(input)
+                inputs.append(input)
+            
+            return inputs
+        
+        # else if num_eval == 1:
         input = self.to_MelSpectrogram(audio)
         
         if self.dataset_type == "VX2":
