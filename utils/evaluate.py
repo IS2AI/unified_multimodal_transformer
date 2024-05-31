@@ -73,13 +73,13 @@ def evaluate(model, val_dataloader, epoch, device, data_type, loss_type, mode):
     Returns:
         tuple: A tuple containing the model, the average equal error rate (EER), and the average accuracy.
             If mode is "train" or (mode is "evaluate" and len(data_type) == 1), the tuple contains the model, avg_eer, and avg_accuracy.
-            If mode is "evaluate" and len(data_type) > 1, the tuple contains the model, total_eer, and total_accuracy.
+            If mode is "test" and len(data_type) > 1, the tuple contains the model, total_eer, and total_accuracy.
     """
     
     model.eval()
     data_type_len = len(data_type)
     
-    if mode == "train" or (mode == 'evaluate' and data_type_len == 1):
+    if mode == "train" or (mode == 'test' and data_type_len == 1):
         total_eer = 0
         total_accuracy = 0
         
@@ -105,7 +105,7 @@ def evaluate(model, val_dataloader, epoch, device, data_type, loss_type, mode):
         print("\nAverage val accuracy: {}".format(avg_accuracy))
         return model, avg_eer, avg_accuracy
     
-    if mode == 'evaluate':
+    if mode == 'test':
         total_eer = []
         total_accuracy = []
         
