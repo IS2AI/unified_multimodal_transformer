@@ -32,123 +32,6 @@ import torchvision.transforms as T
 import matplotlib.pyplot as plt
 
 
-
-def evaluate_single_epoch(model,
-                        val_dataloader,
-                        epoch, 
-                        device,
-                        data_type,
-                        loss_type):
-    model.eval()
-    total_eer = 0
-    total_accuracy = 0
-
-    pbar = tqdm(val_dataloader, desc=f'Eval (epoch = {epoch})')
-    
-    for batch in pbar:
-        data_type = sorted(data_type)
-        id1, id2, labels = batch
-        data_id1_lst, _ = id1 # was data_id1_lst,_
-        data_id2_lst, _ = id2
-        
-        data_id1_lst = [data_id1.to(device) for data_id1 in data_id1_lst] # TODO is it neccessary what about data_id1_lst.to(device)? 
-        data_id2_lst = [data_id2.to(device) for data_id2 in data_id2_lst]
-        
-        with torch.no_grad():
-            
-            id1_out_lst = [model(data_id1) for data_id1 in data_id1_lst]
-            id2_out_lst = [model(data_id2) for data_id2 in data_id2_lst]
-            
-            """
-            # Given that cos_sim(u, v) = dot(u, v) / (norm(u) * norm(v))
-                          = dot(u / norm(u), v / norm(v))
-            """
-            
-            id1_out_lst = torch.stack(id1_out_lst)
-            id2_out_lst = torch.stack(id2_out_lst)
-
-            id1_out_lst_norm = id1_out_lst / id1_out_lst.norm(dim=-1)[:, :, None]
-            id2_out_lst_norm = id2_out_lst / id2_out_lst.norm(dim=-1)[:, :, None]
-            product_res = torch.einsum('kij, bij->kbi', id1_out_lst_norm, id2_out_lst_norm)
-            # product_res shape is [10, 10, batch_size]
-            res = product_res.view(-1, product_res.shape[2])
-            cos_sim = res.mean(dim=0)
-            
-            eer, scores = EER_(cos_sim, labels)
-            accuracy = accuracy_(labels, scores)
-
-            total_eer += eer
-            total_accuracy += accuracy
-
-    avg_eer = total_eer / len(val_dataloader)
-    print("\nAverage val eer: {}".format(avg_eer))
-
-    avg_accuracy = total_accuracy / len(val_dataloader)
-    print("\nAverage val accuracy: {}".format(avg_accuracy))
-
-    return model, avg_eer, avg_accuracy
-
-
-def bimodal_evaluate_single_epoch(model,
-                        val_dataloader,
-                        epoch, 
-                        device,
-                        data_type,
-                        loss_type):
-    model.eval()
-    total_eer = 0
-    total_accuracy = 0
-
-    pbar = tqdm(val_dataloader, desc=f'Eval (epoch = {epoch})')
-
-    for batch in pbar:
-        data_type = sorted(data_type)
-        id1, id2, labels = batch
-                
-                
-        data_id1_1, data_id1_2, _ = id1
-        data_id2_1, data_id2_2, _ = id2
-        
-        data_id1_1 = [data_id1.to(device) for data_id1 in data_id1_1]
-        data_id1_2 = [data_id1.to(device) for data_id1 in data_id1_2]
-        data_id2_1 = [data_id2.to(device) for data_id2 in data_id2_1]
-        data_id2_2 = [data_id2.to(device) for data_id2 in data_id2_2]
-
-        with torch.no_grad():
-
-            data_id1_1 = [model(data_id1) for data_id1 in data_id1_1]
-            data_id1_2 = [model(data_id2) for data_id2 in data_id1_2]
-            data_id2_1 = [model(data_id1) for data_id1 in data_id2_1]
-            data_id2_2 = [model(data_id2) for data_id2 in data_id2_2]
-
-            id1_out_lst = [torch.mean(torch.stack([data_id1_1[i], data_id1_2[i]]), dim=0) for i in range(len(data_id1_1))] 
-            id2_out_lst = [torch.mean(torch.stack([data_id2_1[i], data_id2_2[i]]), dim=0) for i in range(len(data_id2_2))] 
-
-            
-            id1_out_lst = torch.stack(id1_out_lst)
-            id2_out_lst = torch.stack(id2_out_lst)
-            
-            id1_out_lst_norm = id1_out_lst / id1_out_lst.norm(dim=-1)[:, :, None]
-            id2_out_lst_norm = id2_out_lst / id2_out_lst.norm(dim=-1)[:, :, None]
-            product_res = torch.einsum('kij, bij->kbi', id1_out_lst_norm, id2_out_lst_norm)
-            # product_res shape is [10, 10, batch_size]
-            res = product_res.view(-1, product_res.shape[2])
-            cos_sim = res.mean(dim=0)
-    
-            eer, scores = EER_(cos_sim, labels)
-            accuracy = accuracy_(labels, scores)
-
-            total_eer += eer
-            total_accuracy += accuracy
-
-    avg_eer = total_eer / len(val_dataloader)
-    print("\nAverage val eer: {}".format(avg_eer))
-
-    avg_accuracy = total_accuracy / len(val_dataloader)
-    print("\nAverage val accuracy: {}".format(avg_accuracy))
-
-    return model, avg_eer, avg_accuracy
-
 def results_to_csv(val_eer, val_acc, data_type, save_dir, exp_name, path_to_valid_list, dataset_type):
     
     df = pd.DataFrame(columns = ["data_type_1", "data_type_2", "EER", "accuracy"])
@@ -175,7 +58,7 @@ def results_to_csv(val_eer, val_acc, data_type, save_dir, exp_name, path_to_vali
     df.to_csv(file_name)
     return df
 
-
+# TODO(evaluate.py) get_eer_accuracy is mostly different for different num_eval?
 def get_eer_accuracy(id1, id2, labels):
     id1_out_lst = torch.stack(id1)
     id2_out_lst = torch.stack(id2)
@@ -238,6 +121,22 @@ def evaluate_trimodal_pair(model, id1, id2, labels, device):
     
     return total_eer, total_accuracy
 
+def evaluate_unimodal_pair(model, id1, id2, labels, device):
+    data_id1_lst, _ = id1 # was data_id1_lst,_
+    data_id2_lst, _ = id2
+        
+    data_id1_lst = [data_id1.to(device) for data_id1 in data_id1_lst] # TODO preprocess_and_infer is overhead for unimodal case
+    data_id2_lst = [data_id2.to(device) for data_id2 in data_id2_lst]
+
+        
+    with torch.no_grad():
+        id1_out_lst = [model(data_id1) for data_id1 in data_id1_lst]
+        id2_out_lst = [model(data_id2) for data_id2 in data_id2_lst]
+
+        eer, accuracy = get_eer_accuracy(id1_out_lst, id2_out_lst, labels)
+
+    return eer, accuracy
+            
 
 def evaluate_bimodal_pair(model, id1, id2, labels, device):
     
@@ -260,15 +159,20 @@ def evaluate_bimodal_pair(model, id1, id2, labels, device):
 
     return total_eer, total_accuracy
 
-def evaluate_multimodal_model(model,
+def evaluate_unified_model(model,
                         val_dataloader,
                         epoch,
                         device,
                         data_type,
                         loss_type):
     model.eval()
-    total_eer = []
-    total_accuracy = []
+
+    if len(data_type) == 1:
+        total_eer = 0
+        total_accuracy = 0
+    else:
+        total_eer = []
+        total_accuracy = []
 
     pbar = tqdm(val_dataloader, desc=f'Eval (epoch = {epoch})')
 
@@ -276,16 +180,32 @@ def evaluate_multimodal_model(model,
 
         data_type = sorted(data_type)
         id1, id2, labels = batch
-        
-        if len(data_type) == 2:
+
+        if len(data_type) == 1:
+            eer, accuracy = evaluate_unimodal_pair(model, id1, id2, labels, device)
+            total_eer += eer
+            total_accuracy += accuracy
+        elif len(data_type) == 2:
             eer, accuracy = evaluate_bimodal_pair(model, id1, id2, labels, device)
+            total_eer.append(eer)
+            total_accuracy.append(accuracy)
         elif len(data_type) == 3:
             eer, accuracy = evaluate_trimodal_pair(model, id1, id2, labels, device)
+            total_eer.append(eer)
+            total_accuracy.append(accuracy)
+        
+    if len(data_type == 1):
+        avg_eer = total_eer / len(val_dataloader)
+        print("\nAverage val eer: {}".format(avg_eer))
+        avg_accuracy = total_accuracy / len(val_dataloader)
+        print("\nAverage val accuracy: {}".format(avg_accuracy))
 
-        total_eer.append(eer)
-        total_accuracy.append(accuracy)
-
-    return model, total_eer, total_accuracy
+        return model, avg_eer, avg_accuracy
+    
+    val_eer = np.array(total_eer).mean(axis=0)
+    val_acc = np.array(total_accuracy).mean(axis=0)
+    results_to_csv(val_eer, val_acc, data_type, save_dir, exp_name, path_to_valid_list, dataset_type)
+    return model, val_eer, val_acc
 
 
 if __name__== "__main__":
@@ -417,32 +337,23 @@ if __name__== "__main__":
     model.load_state_dict(torch.load(PATH))
     model = model.to(device)
     print("Loaded weights")
+
     
     logs =  torch.load(f'{save_dir}/{exp_name}_logs')
     epoch = np.argmin(logs['val_eer'])+1
     print(f"at epoch {epoch}")
-    if len(data_type)==2:
-        model, val_eer, val_acc = evaluate_multimodal_model(model, 
+    
+    model, val_eer, val_acc = evaluate_unified_model(model, 
                                         valid_dataloader,
                                         epoch,
                                         device,
                                         data_type,
                                         loss_type)
-        
-        val_eer = np.array(val_eer).mean(axis=0)
-        val_acc = np.array(val_acc).mean(axis=0)
-        results_to_csv(val_eer, val_acc, data_type, save_dir, exp_name, path_to_valid_list, dataset_type)
-    elif len(data_type)==1:
-        model, val_eer, val_acc = evaluate_single_epoch(model, 
-                                  valid_dataloader,
-                                  epoch,
-                                  device,
-                                  data_type,
-                                  loss_type)
-
+    if len(data_type) == 1:
         print(f"Best val eer: {val_eer}")
         print(f"Best val_acc: {val_acc}")
     
         logs['best_test_eer'] = val_eer
         logs['best_test_acc'] = val_acc
         torch.save(logs,f'{save_dir}/{exp_name}_logs')
+    
