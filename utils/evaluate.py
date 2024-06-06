@@ -57,7 +57,7 @@ def evaluate_pair(model, id1, id2, labels, device, modalities):
 
     return total_eer, total_accuracy     
         
-def evaluate(model, val_dataloader, epoch, device, data_type, loss_type, mode):
+def evaluate(model, val_dataloader, epoch, device, data_type, loss_type, mode, save_dir, exp_name, path_to_valid_list, dataset_type):
     """
     Evaluate the performance of a model on a validation dataset.
 
