@@ -31,7 +31,7 @@ def accuracy_(labels, scores):
 def accuracy_sklearn(labels, scores):
     return accuracy_score(labels, scores)
 
-def get_eer_accuracy(id1, id2, labels):
+def get_eer_accuracy(id1, id2, labels, num_eval=1):
     """
     Calculates the Equal Error Rate (EER) and accuracy for the given inputs.
 
@@ -39,15 +39,31 @@ def get_eer_accuracy(id1, id2, labels):
         id1 (torch.Tensor): The first input tensor.
         id2 (torch.Tensor): The second input tensor.
         labels (torch.Tensor): The labels tensor.
+        num_eval (int): Value that differentiates evaluation process for speaking_faces (when set to 1) and for voxceleb2(when set to 10)
 
     Returns:
         tuple: A tuple containing the EER and accuracy values.
 
     """
-    cos_sim = F.cosine_similarity(id1, id2, dim=1)
-    eer, scores = EER_(cos_sim, labels)
-    accuracy = accuracy_(labels, scores)
-    return eer, accuracy
+    if num_eval > 1:
+        id1_out_lst = torch.stack(id1)
+        id2_out_lst = torch.stack(id2)
+
+        id1_out_lst_norm = id1_out_lst / id1_out_lst.norm(dim=-1)[:, :, None]
+        id2_out_lst_norm = id2_out_lst / id2_out_lst.norm(dim=-1)[:, :, None]
+        product_res = torch.einsum('kij, bij->kbi', id1_out_lst_norm, id2_out_lst_norm)
+        # product_res shape is [10, 10, batch_size]
+        res = product_res.view(-1, product_res.shape[2])
+        cos_sim = res.mean(dim=0)
+
+        eer, scores = EER_(cos_sim, labels)
+        accuracy = accuracy_(labels, scores)
+        return eer, accuracy
+    else:
+        cos_sim = F.cosine_similarity(id1, id2, dim=1)
+        eer, scores = EER_(cos_sim, labels)
+        accuracy = accuracy_(labels, scores)
+        return eer, accuracy
 
 def get_index_pairs(l1, l2):
     """
@@ -63,7 +79,7 @@ def get_index_pairs(l1, l2):
     """
     return list(product(range(len(l1)), range(len(l2))))
 
-def calculate_total_eer_accuracy(id1, id2, labels):
+def calculate_total_eer_accuracy(id1, id2, labels, num_eval=1):
     """
     Calculate the total equal error rate (EER) and accuracy for pairs of IDs.
 
@@ -71,6 +87,7 @@ def calculate_total_eer_accuracy(id1, id2, labels):
         id1 (list): List of IDs for the first set of samples.
         id2 (list): List of IDs for the second set of samples.
         labels (list): List of labels for the samples.
+        num_eval (int): Value that differentiates evaluation process for speaking_faces (when set to 1) and for voxceleb2(when set to 10).
 
     Returns:
         tuple: A tuple containing two numpy arrays - total_eer and total_accuracy.
@@ -81,21 +98,29 @@ def calculate_total_eer_accuracy(id1, id2, labels):
     total_accuracy = np.zeros((len(id1), len(id2)))
 
     for i, j in get_index_pairs(id1, id2):
-        eer, accuracy = get_eer_accuracy(id1[i], id2[j], labels)
+        eer, accuracy = get_eer_accuracy(id1[i], id2[j], labels, num_eval)
         total_eer[i, j] = eer
         total_accuracy[i, j] = accuracy
 
     return total_eer, total_accuracy
 
 
-def calculate_mean_combinations(data_list):
+def calculate_mean_combinations(data_list, num_eval=1):
     """
     Calculates the mean of each pair of tensors in the given data_list.
 
     Args:
         data_list (list): A list of tensors.
+        num_eval (int): Value that differentiates evaluation process for speaking_faces (when set to 1) and for voxceleb2(when set to 10).
 
     Returns:
         list: A list of tensors, where each tensor is the mean of a pair of tensors from data_list.
     """
-    return [torch.mean(torch.stack(pair), dim=0) for pair in combinations(data_list, 2)]
+    if num_eval > 1:
+        mean_combinations = []
+        for i in range(len(data_list)):
+            for j in range(i + 1, len(data_list)):
+                mean_combinations.append(torch.mean(torch.stack([data_list[i], data_list[j]]), dim=0))
+        return mean_combinations
+    else:
+        return [torch.mean(torch.stack(pair), dim=0) for pair in combinations(data_list, 2)]
