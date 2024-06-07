@@ -1,5 +1,3 @@
-<<<<<<< HEAD
-# unified_multimodal_transformer
 =======
 One Model to Rule Them All: Unified Transformer for Biometric Matching
 ==
@@ -29,4 +27,4 @@ python main.py --data_type rgb wav thr --annotation_file annotations/annotations
 The following command launches training of our audio-visual unified transformer on VoxCeleb dataset
 
 ## Reference
->>>>>>> origin/master
+
