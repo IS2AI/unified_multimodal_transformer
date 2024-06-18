@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 
 from utils.metrics import get_eer_accuracy, calculate_mean_combinations, calculate_total_eer_accuracy, accuracy_
-from utils.data_processing import preprocess_and_infer, results_to_csv, preprocess_and_infer_train
+from utils.data_preprocessing import preprocess_and_infer, results_to_csv, preprocess_and_infer_train
 
 def evaluate_pair(model, id1, id2, labels, device, dataset_type, num_eval, modalities):
     """
