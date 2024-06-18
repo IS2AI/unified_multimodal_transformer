@@ -1,11 +1,13 @@
 import torch
-from torch.utils.data import DataLoader
+from utils.models import Model
 import numpy as np
 import random
 import os
 
+from utils.transforms import Image_Transforms
+from utils.transforms import  Audio_Transforms
 from utils.dataset import ValidDataset
-from utils.transforms import Audio_Transforms , Image_Transforms
+
 from torch.utils.data import DataLoader
 from utils.dataset import TrainDataset
 from utils.evaluate import evaluate
@@ -38,7 +40,13 @@ if __name__== "__main__":
     # dataset
     data_type = params['data_type']
     dataset_type = params['dataset_type']
-    
+
+    #Standard Parameters
+    if dataset_type == 'VX2':
+        num_eval = 10
+    if dataset_type == 'SF':
+        num_eval = 1
+        
     # model
     library = params['library']
     model_name = params['model_name']
@@ -89,18 +97,19 @@ if __name__== "__main__":
                                     model_name=model_name,
                                     library=library,
                                     dataset_type=dataset_type,
-                                    mode=mode)
-        
+                                    mode = mode,
+                                    num_eval=num_eval, 
+                                    )
         audio_T = audio_T.transform
 
     if 'rgb' in data_type:
         rgb_T = Image_Transforms(model_name=model_name,
-                                library=library, modality="rgb", dataset_type=dataset_type,)
+                                library=library, modality="rgb", dataset_type=dataset_type,num_eval=num_eval,)
         rgb_T = rgb_T.transform  
         
     if 'thr' in data_type:
         thr_T = Image_Transforms(model_name=model_name,
-                                library=library, modality="thr", dataset_type=dataset_type,)
+                                library=library, modality="thr", dataset_type=dataset_type,num_eval=num_eval,)
         thr_T = thr_T.transform  
 
     # Dataset
@@ -110,7 +119,8 @@ if __name__== "__main__":
                                 dataset_type=dataset_type,
                                 rgb_transform=rgb_T, 
                                 thr_transform=thr_T, 
-                                audio_transform=audio_T)
+                                audio_transform=audio_T,
+                                num_eval=num_eval,)
     
     
     valid_dataloader = DataLoader(dataset=valid_dataset,
@@ -143,6 +153,7 @@ if __name__== "__main__":
     model, val_eer, val_acc = evaluate(model,
                                        valid_dataloader,
                                        epoch,
+                                       num_eval,
                                        device,
                                        data_type,
                                        loss_type,
