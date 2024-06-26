@@ -47,11 +47,39 @@ python main.py --data_type rgb wav thr --annotation_file annotations/annotations
 
 
 ## Testing the models
-The following commands will test the existed models:
+This section explains how to test pre-trained models and provides details about the evaluation process, including supported scenarios and metrics.
 
 ```
 python test.py --data_type rgb wav thr --annotation_file annotations/annotations_file_SF_train_cleaned.csv --path_to_train_dataset $data_dir --path_to_valid_dataset $valid_dir --path_to_valid_list $valid_list --save_dir results
 ```
+**Evaluation Protocol:**
+
+Our input-agnostic model allows for verification across a range of scenarios:
+
+*   **Unimodal Matching:** Employs a single biometric characteristic (e.g., visual data only).
+*   **Multimodal Matching:** Utilizes multiple characteristics together (e.g., visual and audio data).
+*   **Cross-Modal Matching:**  Compares data from distinct biometric modalities (e.g., visual data vs. audio data).
+*   **Missing Modality Handling:**  Robustly handles instances where one or more modalities are unavailable for a subject.
+
+**Evaluation Scenarios:**
+
+The model is evaluated across various input combinations, simulating real-world scenarios with potential missing data:
+
+*   **SpeakingFaces:** 49 combinations (7 embeddings x 7 embeddings) are evaluated, covering all possible pairings of unimodal, bimodal, and trimodal embeddings.
+*   **VoxCeleb:**  9 combinations (3 embeddings x 3 embeddings) are evaluated for unimodal audio, unimodal visual, and bimodal audio-visual configurations.
+
+![Biometric matching scenarios for our transformer-based unified system evaluated on the audio-visual VoxCeleb1 dataset](./data/eval_VC1.png)
+
+**Figure 2:** This figure demonstrates the flexibility of our system in handling different biometric matching scenarios . It showcases cross-modal matching (e.g., face vs. voice), cases where one modality is missing, and scenarios where all modalities are available.
+
+**Evaluation Metric:**
+
+**Equal Error Rate (EER)** serves as the primary performance metric. EER pinpoints the threshold where the false acceptance rate (FAR) and false rejection rate (FRR) are equivalent, providing a balanced measure of system accuracy. A lower EER signifies enhanced performance.
+
+**Example:**
+
+In a scenario comparing audio-visual data against visual data, the script computes cosine similarity scores between the corresponding embedding pairs. The EER is then determined using ground truth labels from the annotation file. 
+
 
 ## Reference
 
