@@ -1,6 +1,6 @@
-=======
-One Model to Rule Them All: Unified Transformer for Biometric Matching
-==
+
+#One Model to Rule Them All: Unified Transformer for Biometric Matching
+
 ![One Model to Rule Them All: Unified Transformer for Biometric Matching](data/eval_VC1.png)
 
 Abstract *We present a transformer-based model for biometric verification in unimodal, multimodal, cross-modal, and missing modality situations, leveraging the adaptability of transformer architectures. Our approach involves joint training on audio, visual, and thermal data within a multimodal framework. By converting all three data types into an image format, we construct a unified system utilizing the Vision Transformer (ViT) architecture, with fully shared model parameters,  enabling the encoder to transform input modalities into a unified vector space. The multimodal prototypical network loss function ensures that vector representations of the same speaker are proximate regardless of their original modalities. We evaluated our approach on SpeakingFaces and VoxCeleb datasets, where the trimodal model achieves an Equal Error Rate (EER) of 0.27% on the SpeakingFaces test split, surpassing all previously reported results, and in cross-modal evaluation on the VoxCeleb1 test set (audio versus visual), our approach yields an EER of 24.1%, again outperforming state-of-the-art models.*
