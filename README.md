@@ -1,5 +1,5 @@
 
-#One Model to Rule Them All: Unified Transformer for Biometric Matching
+# One Model to Rule Them All: Unified Transformer for Biometric Matching
 
 ![One Model to Rule Them All: Unified Transformer for Biometric Matching](data/eval_VC1.png)
 
@@ -24,7 +24,7 @@ The following command start training the model of the given modalities.
 
 This is the most basic form:
 ```
-python train.py --data_type rgb wav thr --annotation_file annotations/annotations_file_SF_train_cleaned.csv --path_to_train_dataset $data_dir --path_to_valid_dataset $valid_dir --path_to_valid_list $valid_list --save_dir results
+python main.py --data_type rgb wav thr --annotation_file annotations/annotations_file_SF_train_cleaned.csv --path_to_train_dataset $data_dir --path_to_valid_dataset $valid_dir --path_to_valid_list $valid_list --save_dir results
 ```
 
 In config.yaml, all default training parameters are specified. You can change them or provide a custom config.
