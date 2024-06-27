@@ -70,6 +70,7 @@ The model is evaluated across various input combinations, simulating real-world 
 *   **SpeakingFaces:** 49 combinations (7 embeddings x 7 embeddings) are evaluated, covering all possible pairings of unimodal, bimodal, and trimodal embeddings.
 *   **VoxCeleb:**  9 combinations (3 embeddings x 3 embeddings) are evaluated for unimodal audio, unimodal visual, and bimodal audio-visual configurations.
 
+Note: The type of data used in testing depends on the model being used.
 **Evaluation Metric:**
 
 **Equal Error Rate (EER)** serves as the primary performance metric. EER pinpoints the threshold where the false acceptance rate (FAR) and false rejection rate (FRR) are equivalent, providing a balanced measure of system accuracy. A lower EER signifies enhanced performance.
