@@ -51,7 +51,7 @@ python main.py --data_type rgb wav thr --annotation_file annotations/annotations
 This section explains how to test pre-trained models and provides details about the evaluation process, including supported scenarios and metrics.
 
 ```
-python test.py --data_type rgb wav thr --annotation_file annotations/annotations_file_SF_train_cleaned.csv --path_to_train_dataset $data_dir --path_to_valid_dataset $valid_dir --path_to_valid_list $valid_list --save_dir results
+python test.py --mode test --n_gpu 0 --seed 42 --path_to_valid_dataset $data_dir --path_to_valid_list $valid_list_dir --save_dir results --exp_name exp1
 ```
 **Evaluation Protocol:**
 
@@ -75,7 +75,7 @@ The model is evaluated across various input combinations, simulating real-world 
 
 **Example:**
 
-In a scenario comparing audio-visual data against visual data, the script computes cosine similarity scores between the corresponding embedding pairs. The EER is then determined using ground truth labels from the annotation file. 
+In a scenario comparing audio-visual data against visual data, the script computes cosine similarity scores between the corresponding embedding pairs as shown in Figure 1 a). The EER is then determined using ground truth labels from the annotation file. 
 
 
 ## Reference
