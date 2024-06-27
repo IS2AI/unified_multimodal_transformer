@@ -2,8 +2,9 @@
 # One Model to Rule Them All: Unified Transformer for Biometric Matching
 
 ![One Model to Rule Them All: Unified Transformer for Biometric Matching](data/eval_VC1.png)
+**Figure 1:** This figure demonstrates the flexibility of our system in handling different biometric matching scenarios . It showcases cross-modal matching (e.g., face vs. voice), cases where one modality is missing, and scenarios where all modalities are available.
 
-Abstract *We present a transformer-based model for biometric verification in unimodal, multimodal, cross-modal, and missing modality situations, leveraging the adaptability of transformer architectures. Our approach involves joint training on audio, visual, and thermal data within a multimodal framework. By converting all three data types into an image format, we construct a unified system utilizing the Vision Transformer (ViT) architecture, with fully shared model parameters,  enabling the encoder to transform input modalities into a unified vector space. The multimodal prototypical network loss function ensures that vector representations of the same speaker are proximate regardless of their original modalities. We evaluated our approach on SpeakingFaces and VoxCeleb datasets, where the trimodal model achieves an Equal Error Rate (EER) of 0.27% on the SpeakingFaces test split, surpassing all previously reported results, and in cross-modal evaluation on the VoxCeleb1 test set (audio versus visual), our approach yields an EER of 24.1%, again outperforming state-of-the-art models.*
+Abstract: *We present a transformer-based model for biometric verification in unimodal, multimodal, cross-modal, and missing modality situations, leveraging the adaptability of transformer architectures. Our approach involves joint training on audio, visual, and thermal data within a multimodal framework. By converting all three data types into an image format, we construct a unified system utilizing the Vision Transformer (ViT) architecture, with fully shared model parameters,  enabling the encoder to transform input modalities into a unified vector space. The multimodal prototypical network loss function ensures that vector representations of the same speaker are proximate regardless of their original modalities. We evaluated our approach on SpeakingFaces and VoxCeleb datasets, where the trimodal model achieves an Equal Error Rate (EER) of 0.27% on the SpeakingFaces test split, surpassing all previously reported results, and in cross-modal evaluation on the VoxCeleb1 test set (audio versus visual), our approach yields an EER of 24.1%, again outperforming state-of-the-art models.*
 
 
 ## Dataset
@@ -67,10 +68,6 @@ The model is evaluated across various input combinations, simulating real-world 
 
 *   **SpeakingFaces:** 49 combinations (7 embeddings x 7 embeddings) are evaluated, covering all possible pairings of unimodal, bimodal, and trimodal embeddings.
 *   **VoxCeleb:**  9 combinations (3 embeddings x 3 embeddings) are evaluated for unimodal audio, unimodal visual, and bimodal audio-visual configurations.
-
-![Biometric matching scenarios for our transformer-based unified system evaluated on the audio-visual VoxCeleb1 dataset](./data/eval_VC1.png)
-
-**Figure 2:** This figure demonstrates the flexibility of our system in handling different biometric matching scenarios . It showcases cross-modal matching (e.g., face vs. voice), cases where one modality is missing, and scenarios where all modalities are available.
 
 **Evaluation Metric:**
 
