@@ -35,6 +35,7 @@ In config.yaml, all default training parameters are specified. You can change th
      bimodal: 'rgb wav' ,'rgb thr', 'wav thr'
      trimodal: 'rgb wav thr'
      Note: all three modalities can be used on SpeakingFaces dataset,  'rgb' and 'wav', and their combination only can be used in case of VoxCeleb dataset
+- `--mode `: specifies the mode for either training or testing the models
 - `--annotation_file ./annotations/ANNOTATIONS_FILE_NAME`: path to the annotation file
 - `--path_to_train_dataset PATH_TO_TRAIN_DATASET`:
 - `--path_to_valid_dataset PATH_TO_VALID_DATASET`
@@ -51,7 +52,7 @@ python main.py --data_type rgb wav thr --annotation_file annotations/annotations
 This section explains how to test pre-trained models and provides details about the evaluation process, including supported scenarios and metrics.
 
 ```
-python test.py --annotation_file annotations/annotations_file_SF_train_cleaned.csv --path_to_train_dataset $data_dir --path_to_valid_dataset $valid_dir --path_to_valid_list $valid_list --save_dir results
+python test.py --mode test --n_gpu 0 --seed 42 --path_to_valid_dataset $data_dir --path_to_valid_list $valid_list_dir --save_dir results --exp_name exp1
 ```
 **Evaluation Protocol:**
 
@@ -76,7 +77,7 @@ Note: The type of data used in testing depends on the model being used.
 
 **Example:**
 
-In a scenario comparing audio-visual data against visual data, the script computes cosine similarity scores between the corresponding embedding pairs. The EER is then determined using ground truth labels from the annotation file. 
+In a scenario comparing audio-visual data against visual data, the script computes cosine similarity scores between the corresponding embedding pairs as shown in Figure 1 a). The EER is then determined using ground truth labels from the annotation file. 
 
 
 ## Reference
