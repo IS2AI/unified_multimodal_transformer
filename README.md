@@ -35,6 +35,7 @@ In config.yaml, all default training parameters are specified. You can change th
      bimodal: 'rgb wav' ,'rgb thr', 'wav thr'
      trimodal: 'rgb wav thr'
      Note: all three modalities can be used on SpeakingFaces dataset,  'rgb' and 'wav', and their combination only can be used in case of VoxCeleb dataset
+- `--mode `: specifies the mode for either training or testing the models
 - `--annotation_file ./annotations/ANNOTATIONS_FILE_NAME`: path to the annotation file
 - `--path_to_train_dataset PATH_TO_TRAIN_DATASET`:
 - `--path_to_valid_dataset PATH_TO_VALID_DATASET`
