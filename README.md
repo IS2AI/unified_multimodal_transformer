@@ -25,24 +25,24 @@ The following command start training the model of the given modalities.
 
 This is the most basic form:
 ```
-python main.py --data_type rgb wav thr --annotation_file annotations/annotations_file_SF_train_cleaned.csv --path_to_train_dataset $data_dir --path_to_valid_dataset $valid_dir --path_to_valid_list $valid_list --save_dir results --config_file $config_dir
+python main.py --annotation_file annotations/annotations_file_SF_train_cleaned.csv --path_to_train_dataset $data_dir --path_to_valid_dataset $valid_dir --path_to_valid_list $valid_list --save_dir $save_dir --exp_name $exp_name --config_file $config_dir
 ```
 
 In config.yaml, all default training parameters are specified. You can change them or provide a custom config.
 
-- `--data_type`: allows to chose modality of the model
+<!-- - `--data_type`: allows to chose modality of the model
      - unimodal:'rgb', 'thr', 'wav'
      - bimodal: 'rgb wav' ,'rgb thr', 'wav thr'
      - trimodal: 'rgb wav thr'
-     - Note: all three modalities can be used on SpeakingFaces dataset,  'rgb' and 'wav', and their combination only can be used in case of VoxCeleb dataset
-- `--mode `: specifies the mode for either training or testing the models
+     - Note: all three modalities can be used on SpeakingFaces dataset,  'rgb' and 'wav', and their combination only can be used in case of VoxCeleb dataset -->
 - `--annotation_file ./annotations/ANNOTATIONS_FILE_NAME`: path to the annotation file
 - `--path_to_train_dataset PATH_TO_TRAIN_DATASET`:
 - `--path_to_valid_dataset PATH_TO_VALID_DATASET`
 - `--path_to_valid_list  PATH_TO_VALID_LIST`
 - `--save_dir PATH_TO_DIRECTORY`: path to the directory where the model will be saved
+- `--exp_name EXPERIMENT_NAME`: name for the experiment
 - `--config_file PATH_TO_CONFIG_FILE`: path to the config file for the specified model. 
-     - For example, to train the model on Speaking Faces with rgb and thr modalities, use `configs/config_sf_rgb_thr.yaml`
+     - For example, to train the model on Speaking Faces in 'rgb' and 'thr' modalities, use `configs/config_sf_rgb_thr.yaml`
 <!-- - `--exp_name`  TODO should not be the parameter-->
 <!-- - `--config_file PATH_TO_CONFIG_FILE` -- TODO add this if possible -->
 <!-- ```
@@ -54,8 +54,18 @@ python main.py --data_type rgb wav thr --annotation_file annotations/annotations
 This section explains how to test pre-trained models and provides details about the evaluation process, including supported scenarios and metrics.
 
 ```
-python test.py --mode test --n_gpu 0 --seed 42 --path_to_valid_dataset $data_dir --path_to_valid_list $valid_list_dir --save_dir results --exp_name exp1
+python test.py --mode test --n_gpu 0 --seed 42 --path_to_valid_dataset $data_dir --path_to_valid_list $valid_list_dir --save_dir $save_dir --exp_name $exp_name
 ```
+- `--mode `: specifies the mode for either training or testing the models
+<!-- - `--annotation_file ./annotations/ANNOTATIONS_FILE_NAME`: path to the annotation file -->
+<!-- - `--path_to_train_dataset PATH_TO_TRAIN_DATASET`: -->
+- `--path_to_valid_dataset PATH_TO_VALID_DATASET`
+- `--path_to_valid_list  PATH_TO_VALID_LIST`
+- `--save_dir PATH_TO_DIRECTORY`: path to the directory where the model will be saved
+- `--exp_name EXPERIMENT_NAME`: name for the experiment
+<!-- - `--config_file PATH_TO_CONFIG_FILE`: path to the config file for the specified model.  -->
+<!-- - For example, to train the model on Speaking Faces in 'rgb' and 'thr' modalities, use `configs/config_sf_rgb_thr.yaml` -->
+
 **Evaluation Protocol:**
 
 Our input-agnostic model allows for verification across a range of scenarios:
