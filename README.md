@@ -41,6 +41,7 @@ In config.yaml, all default training parameters are specified. You can change th
 - `--path_to_valid_dataset PATH_TO_VALID_DATASET`
 - `--path_to_valid_list  PATH_TO_VALID_LIST`
 - `--save_dir PATH_TO_DIRECTORY`: path to the directory where the model will be saved
+- `--config_file PATH_TO_CONFIG_FILE`: path to the config file for the specified model. In configs 
 <!-- - `--exp_name`  TODO should not be the parameter-->
 <!-- - `--config_file PATH_TO_CONFIG_FILE` -- TODO add this if possible -->
 <!-- ```

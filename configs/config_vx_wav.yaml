@@ -1,0 +1,32 @@
+n_support : 1 
+n_query : 1
+valid_batch_size : 64
+dist_type : squared_euclidean
+loss_type : metric_learning
+library : timm
+sampler: SFProtoSampler
+model_name : vit_base_patch16_224
+fine_tune : 1
+transfer : 0
+pool: default
+pretrained_weights : 1
+embedding_size : 128
+batch_size : 64
+sample_rate : 16000
+sample_duration: 3 # #?? in thr and rgb it is 2!
+n_fft : 400
+win_length : 400
+hop_length : 160
+n_mels : 128
+image_resize : 128
+wandb: 0
+scheduler : StepLR
+step_size : 10
+gamma : 0.95
+t_max : 10
+num_epochs : 100
+n_batch : 1000
+n_ways: 130
+data_type : ['wav']
+weight_decay : 0.1
+lr : 0.0001
