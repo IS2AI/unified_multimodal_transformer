@@ -13,7 +13,7 @@ def createParser():
     parser.add_argument ('-seed', '--seed', type=int, default=42,
                         help='Random seed')
     #config_file
-    parser.add_argument('-config_file','-config', default='configs/config_sf_rgb.yaml',
+    parser.add_argument('--config_file','-config', default='configs/config_sf_rgb.yaml',
                         help='path to the configuration file with parameters specific to the model')
     
     # train dataset

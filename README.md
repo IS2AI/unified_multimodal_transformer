@@ -25,23 +25,24 @@ The following command start training the model of the given modalities.
 
 This is the most basic form:
 ```
-python main.py --data_type rgb wav thr --annotation_file annotations/annotations_file_SF_train_cleaned.csv --path_to_train_dataset $data_dir --path_to_valid_dataset $valid_dir --path_to_valid_list $valid_list --save_dir results
+python main.py --data_type rgb wav thr --annotation_file annotations/annotations_file_SF_train_cleaned.csv --path_to_train_dataset $data_dir --path_to_valid_dataset $valid_dir --path_to_valid_list $valid_list --save_dir results --config_file $config_dir
 ```
 
 In config.yaml, all default training parameters are specified. You can change them or provide a custom config.
 
 - `--data_type`: allows to chose modality of the model
-     unimodal:'rgb', 'thr', 'wav'
-     bimodal: 'rgb wav' ,'rgb thr', 'wav thr'
-     trimodal: 'rgb wav thr'
-     Note: all three modalities can be used on SpeakingFaces dataset,  'rgb' and 'wav', and their combination only can be used in case of VoxCeleb dataset
+     - unimodal:'rgb', 'thr', 'wav'
+     - bimodal: 'rgb wav' ,'rgb thr', 'wav thr'
+     - trimodal: 'rgb wav thr'
+     - Note: all three modalities can be used on SpeakingFaces dataset,  'rgb' and 'wav', and their combination only can be used in case of VoxCeleb dataset
 - `--mode `: specifies the mode for either training or testing the models
 - `--annotation_file ./annotations/ANNOTATIONS_FILE_NAME`: path to the annotation file
 - `--path_to_train_dataset PATH_TO_TRAIN_DATASET`:
 - `--path_to_valid_dataset PATH_TO_VALID_DATASET`
 - `--path_to_valid_list  PATH_TO_VALID_LIST`
 - `--save_dir PATH_TO_DIRECTORY`: path to the directory where the model will be saved
-- `--config_file PATH_TO_CONFIG_FILE`: path to the config file for the specified model. In configs 
+- `--config_file PATH_TO_CONFIG_FILE`: path to the config file for the specified model. 
+     - For example, to train the model on Speaking Faces with rgb and thr modalities, use `configs/config_sf_rgb_thr.yaml`
 <!-- - `--exp_name`  TODO should not be the parameter-->
 <!-- - `--config_file PATH_TO_CONFIG_FILE` -- TODO add this if possible -->
 <!-- ```
