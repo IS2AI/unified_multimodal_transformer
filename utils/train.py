@@ -5,8 +5,8 @@ import torch
 import torch.nn.functional as F
 import random
 import time
-from speaker_verification.metrics import EER_
-from speaker_verification.metrics import accuracy_
+from utils.metrics import EER_
+from utils.metrics import accuracy_
 from timeit import default_timer as timer
 
 def train_model(model, 
