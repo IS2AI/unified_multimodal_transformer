@@ -49,7 +49,7 @@ if __name__== "__main__":
     transfer = config['transfer']
     pool=config['pool']
     
-    # transfer_exp_path = config['transfer_exp_path'] # TODO do we need it?
+    # transfer_exp_path = config['transfer_exp_path']
     data_type=config['data_type']
     pretrained_weights = config['pretrained_weights']
     embedding_size = config['embedding_size']
@@ -92,12 +92,10 @@ if __name__== "__main__":
     num_epochs = config['num_epochs']
     # save_dir = config['save_dir']
     wandb_use = config['wandb']
-    # mode = 'train' # TODO pass this argument in the evaluate and stuff
 
     input_parameters = {}
     input_parameters["n_gpu"] = n_gpu
     input_parameters["seed_number"] = seed_number
-
     input_parameters["annotation_file"] = annotations_file
     input_parameters["path_to_train_dataset"] = path_to_train_dataset
     input_parameters["path_to_valid_dataset"] = path_to_valid_dataset
@@ -112,16 +110,15 @@ if __name__== "__main__":
     input_parameters["loss_type"] = loss_type
     input_parameters["library"] = library
     input_parameters["sampler"] = name_sampler
-
     input_parameters["model_name"] = model_name
     input_parameters["fine_tune"] = fine_tune
     input_parameters["transfer"] = transfer
-    input_parameters["pool"] = pool # TODO do we need it?
+    input_parameters["pool"] = pool
     input_parameters["exp_name"] = exp_name
     input_parameters["pretrained_weights"] = pretrained_weights
     input_parameters["embedding_size"] = embedding_size
     input_parameters["batch_size"] = batch_size
-    input_parameters["wandb"] = wandb_use # TODO to delete?
+    input_parameters["wandb"] = wandb_use
     
     # audio transform
     input_parameters["sample_rate"] = sample_rate
@@ -227,14 +224,14 @@ if __name__== "__main__":
         if name_sampler =="SFProtoSampler":
             train_sampler = SFProtoSampler(train_dataset.labels,
                                         n_batch,
-                                        n_ways, # n_way
-                                        n_support, # n_shots
+                                        n_ways,
+                                        n_support,
                                         n_query)
       
         elif name_sampler =="VoxCelebProtoSampler":
             train_sampler = VoxCelebProtoSampler(train_dataset.labels,
-                                        n_ways, # n_way
-                                        n_support, # n_shots
+                                        n_ways,
+                                        n_support,
                                         n_query)
 
         train_dataloader = DataLoader(dataset=train_dataset, 
@@ -291,4 +288,5 @@ if __name__== "__main__":
                     exp_name=exp_name,
                     data_type=data_type,
                     loss_type=loss_type,
-                    wandb=wandb)
+                    # wandb=wandb
+                    )

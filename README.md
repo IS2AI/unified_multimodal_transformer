@@ -57,8 +57,6 @@ This section explains how to test pre-trained models and provides details about 
 python test.py --mode test --n_gpu 0 --seed 42 --path_to_valid_dataset $data_dir --path_to_valid_list $valid_list_dir --save_dir $save_dir --exp_name $exp_name
 ```
 - `--mode `: specifies the mode for either training or testing the models
-<!-- - `--annotation_file ./annotations/ANNOTATIONS_FILE_NAME`: path to the annotation file -->
-<!-- - `--path_to_train_dataset PATH_TO_TRAIN_DATASET`: -->
 - `--path_to_valid_dataset PATH_TO_VALID_DATASET`
 - `--path_to_valid_list  PATH_TO_VALID_LIST`
 - `--save_dir PATH_TO_DIRECTORY`: path to the directory where the model will be saved

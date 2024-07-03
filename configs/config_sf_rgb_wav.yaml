@@ -13,7 +13,7 @@ pretrained_weights : 1
 embedding_size : 128
 batch_size : 64
 sample_rate : 16000
-sample_duration: 3 # #?? in thr and rgb it is 2!
+sample_duration: 3
 n_fft : 400
 win_length : 400
 hop_length : 160
@@ -28,5 +28,5 @@ num_epochs : 20
 n_batch : 300
 n_ways: 60
 data_type : ['rgb', 'wav']
-weight_decay : 0.01 # I got this weight decay, but in the parameters for the before the weight# decay was 0.1??
+weight_decay : 0.01
 lr : 5e-06

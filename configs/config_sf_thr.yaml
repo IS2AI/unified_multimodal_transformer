@@ -13,7 +13,7 @@ pretrained_weights : 1
 embedding_size : 128
 batch_size : 64
 sample_rate : 16000
-sample_duration: 3 # #?? in thr and rgb it is 2!
+sample_duration: 3
 n_fft : 400
 win_length : 400
 hop_length : 160
